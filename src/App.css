@@ -802,3 +802,87 @@ body, #root {
   display: flex;
   align-items: center;
 }
+
+body.landscape-mode .container {
+  flex-direction: row !important;
+  min-height: 100vw !important;
+  min-width: 100vh !important;
+}
+
+body.landscape-mode .tab-content.active {
+  flex-direction: row !important;
+  align-items: flex-start !important;
+  padding: 10px !important;
+}
+
+body.landscape-mode .notes-container {
+  max-width: 50vw;
+  min-width: 320px;
+  margin: 0 auto;
+  flex: 1 1 0;
+}
+
+body.landscape-mode .note-input-container {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: var(--color-bg-primary);
+  border-bottom: 2px solid var(--color-border);
+}
+
+body.landscape-mode .notes-list {
+  max-height: 40vh;
+  overflow-y: auto;
+}
+
+body.landscape-mode .color-chart-xrite-overlay {
+  flex-direction: row !important;
+  align-items: flex-start !important;
+  justify-content: center !important;
+  padding: 2vw 4vw;
+}
+body.landscape-mode .color-chart-xrite-info-horizontal {
+  flex-direction: column !important;
+  align-items: flex-start !important;
+  min-width: 320px;
+  margin-right: 3vw;
+}
+body.landscape-mode .xrite-chart {
+  width: 40vw !important;
+  height: 28vw !important;
+  max-width: 60vh !important;
+  max-height: 40vh !important;
+}
+
+body.landscape-mode .slate-info {
+  max-width: 40vw;
+  min-width: 240px;
+  margin: 0 2vw;
+}
+
+body.landscape-mode .slate-display-card {
+  max-width: 40vw;
+  min-width: 240px;
+  margin: 0 2vw;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+@media (max-width: 900px) and (orientation: landscape) {
+  body.landscape-mode .color-chart-xrite-overlay {
+    flex-direction: column !important;
+    align-items: center !important;
+    padding: 2vw 2vw;
+  }
+  body.landscape-mode .xrite-chart {
+    width: 80vw !important;
+    height: 50vw !important;
+  }
+  body.landscape-mode .slate-info,
+  body.landscape-mode .slate-display-card {
+    max-width: 100vw;
+    min-width: unset;
+    margin: 0 auto;
+  }
+}

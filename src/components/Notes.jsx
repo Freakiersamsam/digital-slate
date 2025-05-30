@@ -191,7 +191,7 @@ const Notes = forwardRef(function Notes({ slateInfo, sessionStart, useGlobalTime
     setActiveNoteId(null);
   };
 
-  // Add mobile keyboard handling
+  // Add mobile keyboard and orientation handling
   useEffect(() => {
     const handleMobileKeyboard = () => {
       // Scroll to input when keyboard appears
@@ -203,8 +203,26 @@ const Notes = forwardRef(function Notes({ slateInfo, sessionStart, useGlobalTime
       }
     };
 
+    // Listen for resize and orientation changes
     window.addEventListener('resize', handleMobileKeyboard);
-    return () => window.removeEventListener('resize', handleMobileKeyboard);
+    window.addEventListener('orientationchange', handleMobileKeyboard);
+
+    // On landscape, add a class to body for special styling
+    const handleOrientation = () => {
+      if (window.matchMedia('(orientation: landscape)').matches) {
+        document.body.classList.add('landscape-mode');
+      } else {
+        document.body.classList.remove('landscape-mode');
+      }
+    };
+    window.addEventListener('orientationchange', handleOrientation);
+    handleOrientation();
+
+    return () => {
+      window.removeEventListener('resize', handleMobileKeyboard);
+      window.removeEventListener('orientationchange', handleMobileKeyboard);
+      window.removeEventListener('orientationchange', handleOrientation);
+    };
   }, []);
 
   return (
@@ -280,4 +298,4 @@ const Notes = forwardRef(function Notes({ slateInfo, sessionStart, useGlobalTime
   );
 });
 
-export default Notes; 
+export default Notes;
