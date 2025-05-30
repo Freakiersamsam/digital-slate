@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import SlateForm from './components/SlateForm';
 import ColorChart from './components/ColorChart';
 import Notes from './components/Notes';
+import { ThemeToggle } from './components/ThemeToggle';
 
 function playBeep() {
   const ctx = new (window.AudioContext || window.webkitAudioContext)();
@@ -205,6 +206,9 @@ export default function App() {
       <div className="tabs">
         <button className={`tab${tab === 'timecode' ? ' active' : ''}`} onClick={() => setTab('timecode')}>Timecode Sync</button>
         <button className={`tab${tab === 'notes' ? ' active' : ''}`} onClick={() => setTab('notes')}>Notes</button>
+        <div className="theme-toggle-container">
+          <ThemeToggle />
+        </div>
       </div>
       <div id="timecode-tab" className={`tab-content${tab === 'timecode' ? ' active' : ''}`}> 
         <div className="timecode-display">
