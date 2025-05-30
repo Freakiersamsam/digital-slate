@@ -1,11 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useImperativeHandle, forwardRef } from 'react';
 import {
   saveSession,
   loadSession,
   exportSessionCSV,
   exportAllSessions,
-  getStorageInfo
-} from '../localStorage';
+  getStorageInfo,
+  removeSession
+} from '../sessionStorage';
 
 function formatTime(milliseconds, isGlobal = true) {
   if (isGlobal) {
@@ -27,10 +28,17 @@ function formatTime(milliseconds, isGlobal = true) {
 
 const PAUSE_THRESHOLD = 2000; // 2 seconds
 
-export default function Notes({ slateInfo, sessionStart, useGlobalTime, timecodeInfo }) {
+const Notes = forwardRef(function Notes({ slateInfo, sessionStart, useGlobalTime, takeTimerRunning, onSync, onStopTake }, ref) {
   const [noteText, setNoteText] = useState("");
   const [notes, setNotes] = useState([]);
   const [storageInfo, setStorageInfo] = useState(null);
+  const [now, setNow] = useState(Date.now());
+
+  // Live update for time from start
+  useEffect(() => {
+    const interval = setInterval(() => setNow(Date.now()), 10);
+    return () => clearInterval(interval);
+  }, []);
 
   // Generate a sessionId for this session
   const sessionId = `${slateInfo.prod || 'default'}-${sessionStart}`;
@@ -64,7 +72,6 @@ export default function Notes({ slateInfo, sessionStart, useGlobalTime, timecode
   // Add a new note with timestamp
   function addNote(text) {
     if (!text.trim()) return;
-    
     const now = Date.now();
     const newNote = {
       id: Date.now(),
@@ -74,10 +81,26 @@ export default function Notes({ slateInfo, sessionStart, useGlobalTime, timecode
       content: text.trim(),
       slateInfo: { ...slateInfo }
     };
-    
     setNotes(prev => [...prev, newNote]);
     setNoteText(""); // Clear the input
   }
+
+  // Add note externally (from App)
+  function addNoteExternal(text, timestamp, customSlateInfo) {
+    const newNote = {
+      id: timestamp,
+      timecodeIn: formatTime(timestamp, true),
+      relativeTime: formatTime(timestamp - sessionStart, false),
+      timestamp,
+      content: text,
+      slateInfo: { ...customSlateInfo }
+    };
+    setNotes(prev => [...prev, newNote]);
+  }
+
+  useImperativeHandle(ref, () => ({
+    addNoteExternal
+  }));
 
   // Handle note input
   function handleNoteInput(e) {
@@ -124,40 +147,30 @@ export default function Notes({ slateInfo, sessionStart, useGlobalTime, timecode
     exportAllSessions(`digital-slate-backup-${new Date().toISOString().slice(0, 10)}.json`);
   }
 
+  // Clear session notes
+  function clearSession() {
+    if (window.confirm('Are you sure you want to clear all notes for this session?')) {
+      setNotes([]);
+      setNoteText("");
+      removeSession(`${slateInfo.prod || 'default'}-${sessionStart}`);
+    }
+  }
+
   return (
     <div className="notes-container">
+      <div className="notes-timecode-bar">
+        <span className="notes-timecode">{formatTime(now - sessionStart, false)}</span>
+      </div>
       <div className="notes-header">
         <div className="notes-title">Session Notes</div>
         <div className="notes-actions">
-          {storageInfo && (
-            <div className="storage-info">
-              {Math.round(storageInfo.usagePercentage)}% used
-              ({storageInfo.sessionCount} sessions)
-            </div>
-          )}
-          <button className="export-btn" onClick={exportNotesCSV}>Export CSV</button>
+          <button className="sync-button" onClick={takeTimerRunning ? onStopTake : onSync}>
+            {takeTimerRunning ? 'STOP TAKE' : 'SYNC'}
+          </button>
           <button className="export-btn" onClick={handleExportAll}>Backup All</button>
+          <button className="export-btn" onClick={clearSession}>Clear Session</button>
         </div>
       </div>
-      
-      <div className="notes-list">
-        {notes.map(note => (
-          <div key={note.id} className="note-item">
-            <div className="note-timestamp">
-              [{note.timecodeIn} | +{note.relativeTime}]
-            </div>
-            <div className="note-content">{note.content}</div>
-            <button 
-              className="delete-note"
-              onClick={() => deleteNote(note.id)}
-              title="Delete note"
-            >
-              ×
-            </button>
-          </div>
-        ))}
-      </div>
-
       <div className="note-input-container">
         <textarea
           className="note-editor"
@@ -170,6 +183,34 @@ export default function Notes({ slateInfo, sessionStart, useGlobalTime, timecode
           Press Enter to add a note, Shift+Enter for new line
         </div>
       </div>
+      <div className="notes-list">
+        {[...notes].reverse().map(note => (
+          <div key={note.id} className="note-item">
+            <div className="note-meta-row">
+              <span className="note-timestamp">
+                [{note.timecodeIn} | +{note.relativeTime}]
+              </span>
+              {note.slateInfo && (note.slateInfo.scene || note.slateInfo.take) && (
+                <span className="note-scene-take">
+                  {note.slateInfo.scene && <span>Scene {note.slateInfo.scene}</span>}
+                  {note.slateInfo.scene && note.slateInfo.take && <span> · </span>}
+                  {note.slateInfo.take && <span>Take {note.slateInfo.take}</span>}
+                </span>
+              )}
+            </div>
+            <div className="note-content">{note.content}</div>
+            <button 
+              className="delete-note"
+              onClick={() => deleteNote(note.id)}
+              title="Delete note"
+            >
+              ×
+            </button>
+          </div>
+        ))}
+      </div>
     </div>
   );
-} 
+});
+
+export default Notes; 

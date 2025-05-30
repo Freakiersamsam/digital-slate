@@ -30,7 +30,7 @@ export default function SlateForm({ slateInfo, setSlateInfo }) {
       <div className="slate-field">
         <label>Camera:</label>
         <input
-          placeholder="A"
+          placeholder="Camera Name/ID"
           value={slateInfo.camera || ''}
           onChange={e => setSlateInfo({ ...slateInfo, camera: e.target.value })}
         />
@@ -41,6 +41,14 @@ export default function SlateForm({ slateInfo, setSlateInfo }) {
           placeholder="Director Name"
           value={slateInfo.director || ''}
           onChange={e => setSlateInfo({ ...slateInfo, director: e.target.value })}
+        />
+      </div>
+      <div className="slate-field full-width">
+        <label>DOP:</label>
+        <input
+          placeholder="Director of Photography"
+          value={slateInfo.dop || ''}
+          onChange={e => setSlateInfo({ ...slateInfo, dop: e.target.value })}
         />
       </div>
       <div className="slate-field full-width">
