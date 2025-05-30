@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 
 function formatTime(milliseconds, isGlobal = true) {
   if (isGlobal) {
@@ -18,83 +18,146 @@ function formatTime(milliseconds, isGlobal = true) {
   }
 }
 
-export default function Notes({ slateInfo, sessionStart, useGlobalTime }) {
-  const [content, setContent] = useState('');
-  const lastNoteTime = useRef(Date.now());
+const PAUSE_THRESHOLD = 2000; // 2 seconds
 
+export default function Notes({ slateInfo, sessionStart, useGlobalTime }) {
+  const [currentText, setCurrentText] = useState('');
+  const [notes, setNotes] = useState([]); // { text, timestamp }
+  const [typing, setTyping] = useState(false);
+  const typingTimeout = useRef(null);
+  const noteStartTimestamp = useRef(null);
+
+  // When user types, start a new note if not already typing
   const handleInput = (e) => {
-    setContent(e.target.value);
-    lastNoteTime.current = Date.now();
+    const value = e.target.value;
+    setCurrentText(value);
+    if (!typing) {
+      // Start of new note
+      noteStartTimestamp.current = Date.now();
+      setTyping(true);
+    }
+    // Reset the pause timer
+    if (typingTimeout.current) clearTimeout(typingTimeout.current);
+    typingTimeout.current = setTimeout(() => {
+      if (value.trim()) {
+        setNotes((prev) => [
+          ...prev,
+          {
+            text: value.trim(),
+            timestamp: noteStartTimestamp.current,
+          },
+        ]);
+        setCurrentText('');
+      }
+      setTyping(false);
+    }, PAUSE_THRESHOLD);
   };
 
-  const exportNotes = () => {
-    if (!content.trim()) {
-      alert('No notes to export!');
-      return;
+  // Clean up timer on unmount
+  useEffect(() => {
+    return () => {
+      if (typingTimeout.current) clearTimeout(typingTimeout.current);
+    };
+  }, []);
+
+  // Optionally, allow manual save of note (e.g., on button click)
+  const handleManualSave = () => {
+    if (currentText.trim()) {
+      setNotes((prev) => [
+        ...prev,
+        {
+          text: currentText.trim(),
+          timestamp: noteStartTimestamp.current || Date.now(),
+        },
+      ]);
+      setCurrentText('');
+      setTyping(false);
+      if (typingTimeout.current) clearTimeout(typingTimeout.current);
     }
+  };
+
+  // Export notes as a dynamic HTML report
+  const handleExport = () => {
     const sessionDate = new Date();
-    let exportContent = '';
-    exportContent += '==============================================\n';
-    exportContent += '           VIDEO SHOOT NOTES\n';
-    exportContent += '==============================================\n\n';
-    exportContent += 'SESSION INFORMATION:\n';
-    exportContent += `Date: ${sessionDate.toLocaleDateString()}\n`;
-    exportContent += `Time: ${sessionDate.toLocaleTimeString()}\n`;
-    exportContent += `Session Start: ${formatTime(sessionStart, true)} (Global) / ${formatTime(0, false)} (Relative)\n\n`;
-    exportContent += 'SLATE INFORMATION:\n';
-    exportContent += `Production: ${slateInfo.prod}\n`;
-    exportContent += `Director: ${slateInfo.director}\n`;
-    exportContent += `Scene: ${slateInfo.scene}\n`;
-    exportContent += `Take: ${slateInfo.take}\n`;
-    exportContent += `Roll: ${slateInfo.roll}\n`;
-    exportContent += `Camera: ${slateInfo.camera}\n`;
-    exportContent += `Slate Notes: ${slateInfo.notes || ''}\n\n`;
-    exportContent += '==============================================\n';
-    exportContent += '                 NOTES\n';
-    exportContent += '==============================================\n\n';
-    const lines = content.split('\n');
-    const now = Date.now();
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i];
-      if (line.trim() && (i === 0 || lines[i-1].trim() === '')) {
-        const globalTime = formatTime(now, true);
-        const relativeTime = formatTime(now - sessionStart, false);
-        exportContent += `[${globalTime} | +${relativeTime}] `;
-      }
-      exportContent += line + '\n';
+    const html = `<!DOCTYPE html>
+<html lang='en'>
+<head>
+  <meta charset='UTF-8'>
+  <title>Video Shoot Notes Report</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 2em; background: #f9f9f9; color: #222; }
+    h1, h2, h3 { color: #2a3d66; }
+    .section { margin-bottom: 2em; }
+    .slate-table { border-collapse: collapse; width: 100%; margin-bottom: 1em; }
+    .slate-table th, .slate-table td { border: 1px solid #ccc; padding: 8px; }
+    .notes-list { margin-top: 1em; }
+    .note-entry { background: #fff; border-radius: 6px; box-shadow: 0 1px 3px #0001; margin-bottom: 1em; padding: 1em; }
+    .note-timestamp { font-size: 0.95em; color: #555; margin-bottom: 0.5em; }
+    .note-text { font-size: 1.1em; }
+    .search-bar { margin-bottom: 1em; }
+    .summary { background: #e3eefd; padding: 1em; border-radius: 6px; margin-bottom: 2em; }
+  </style>
+</head>
+<body>
+  <h1>Video Shoot Notes Report</h1>
+  <div class='section summary'>
+    <strong>Date:</strong> ${sessionDate.toLocaleDateString()}<br/>
+    <strong>Time:</strong> ${sessionDate.toLocaleTimeString()}<br/>
+    <strong>Total Notes:</strong> ${notes.length}
+  </div>
+  <div class='section'>
+    <h2>Slate Information</h2>
+    <table class='slate-table'>
+      <tr><th>Production</th><td>${slateInfo.prod || ''}</td></tr>
+      <tr><th>Director</th><td>${slateInfo.director || ''}</td></tr>
+      <tr><th>Scene</th><td>${slateInfo.scene || ''}</td></tr>
+      <tr><th>Take</th><td>${slateInfo.take || ''}</td></tr>
+      <tr><th>Roll</th><td>${slateInfo.roll || ''}</td></tr>
+      <tr><th>Camera</th><td>${slateInfo.camera || ''}</td></tr>
+      <tr><th>Slate Notes</th><td>${slateInfo.notes || ''}</td></tr>
+    </table>
+  </div>
+  <div class='section'>
+    <h2>Notes</h2>
+    <input class='search-bar' type='text' id='search' placeholder='Search notes...' oninput='filterNotes()' />
+    <div class='notes-list' id='notes-list'>
+      ${notes.map((note, idx) => `
+        <div class='note-entry' data-text='${note.text.replace(/'/g, "&#39;").replace(/"/g, '&quot;')}'>
+          <div class='note-timestamp'><strong>Timestamp:</strong> ${formatTime(note.timestamp, true)}</div>
+          <div class='note-text'>${note.text.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>
+        </div>
+      `).join('')}
+    </div>
+  </div>
+  <script>
+    function filterNotes() {
+      const query = document.getElementById('search').value.toLowerCase();
+      document.querySelectorAll('.note-entry').forEach(entry => {
+        const text = entry.getAttribute('data-text').toLowerCase();
+        entry.style.display = text.includes(query) ? '' : 'none';
+      });
     }
-    exportContent += '\n\n==============================================\n';
-    exportContent += 'Legend: [Global Time | +Time from Start]\n';
-    exportContent += '==============================================\n';
-    try {
-      const blob = new Blob([exportContent], { type: 'text/plain;charset=utf-8' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `video-shoot-notes-${sessionDate.toISOString().slice(0,10)}.txt`;
-      link.style.display = 'none';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-      alert('Notes exported successfully!');
-    } catch (error) {
-      alert('Export failed. Please try again.');
-    }
+  </script>
+</body>
+</html>`;
+    const blob = new Blob([html], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    window.open(url, '_blank');
   };
 
   return (
     <div className="notes-container">
       <div className="notes-header">
         <div className="notes-title">Session Notes</div>
-        <button className="export-btn" onClick={exportNotes}>Export Notes</button>
+        <button className="export-btn" onClick={handleManualSave}>Save Note</button>
+        <button className="export-btn" onClick={handleExport}>Export Report</button>
       </div>
       <textarea
         className="note-editor"
-        value={content}
+        value={currentText}
         onChange={handleInput}
-        placeholder={`Start typing your notes here...\n\nEach time you press Enter, a new timestamped entry will be created automatically.\n\nYou can write paragraphs, add bullet points, or structure your notes however you like.`}
-        rows={12}
+        placeholder={`Start typing your notes here...\n\nA new note entry is created when you pause typing for 2 seconds or press 'Save Note'.`}
+        rows={8}
       />
     </div>
   );
