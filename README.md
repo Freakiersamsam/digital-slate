@@ -24,12 +24,12 @@ A modern web app for digital film slating, camera synchronization, and note-taki
 - [x] Add favicon and app icon
 - [x] Implement dark/light mode toggle
 - [x] Improve landscape mode support for mobile
-- [ ] Add basic error handling and user feedback
+- [x] Add basic error handling and user feedback
 - [x] Enhance mobile keyboard handling
-- [ ] Optimize basic localStorage usage
+- [x] Optimize basic localStorage usage
 
 #### Core Features (3-7 days each)
-- [ ] Implement PDF export
+- [ ] Implement PDF export (user can choose between JSON or PDF export)
 - [ ] Add MarkerBox for Premiere notes export
 - [ ] Add haptic feedback for mobile devices
 - [ ] Implement notes categories and tags

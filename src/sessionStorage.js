@@ -45,24 +45,32 @@ export function saveAllData(data) {
 
 // Save a single session
 export function saveSession(sessionId, sessionData) {
-  if (!validateSessionData(sessionData)) {
-    console.error('Invalid session data format');
-    return;
+  try {
+    if (!validateSessionData(sessionData)) {
+      console.error('Invalid session data format');
+      return;
+    }
+    const allData = loadAllData();
+    allData.sessions[sessionId] = {
+      ...sessionData,
+      lastModified: new Date().toISOString(),
+      created: allData.sessions[sessionId]?.created || new Date().toISOString()
+    };
+    saveAllData(allData);
+  } catch (err) {
+    console.error('Error saving session:', err);
   }
-  
-  const allData = loadAllData();
-  allData.sessions[sessionId] = {
-    ...sessionData,
-    lastModified: new Date().toISOString(),
-    created: allData.sessions[sessionId]?.created || new Date().toISOString()
-  };
-  saveAllData(allData);
 }
 
 // Load a single session
 export function loadSession(sessionId) {
-  const allData = loadAllData();
-  return allData.sessions[sessionId] || null;
+  try {
+    const allData = loadAllData();
+    return allData.sessions[sessionId] || null;
+  } catch (err) {
+    console.error('Error loading session:', err);
+    return null;
+  }
 }
 
 // Remove a session
@@ -156,4 +164,4 @@ export function getStorageInfo() {
 
 // --- BACKEND INTEGRATION READY ---
 // To use a backend, replace the above save/load/export functions with API calls.
-// For example, POST to /save-session, GET from /get-session, etc. 
+// For example, POST to /save-session, GET from /get-session, etc.
