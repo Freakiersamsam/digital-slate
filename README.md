@@ -19,16 +19,70 @@ A modern web app for digital film slating, camera synchronization, and note-taki
 
 ## TODO / Roadmap
 
-- [ ] **AI summary for notes**: Use AI to generate a summary for each note (currently a placeholder in CSV)
-- [ ] **Backend integration**: Optionally sync sessions/notes to a server for multi-device access
-- [ ] **Multi-session management**: UI for managing multiple sessions/projects
-- [ ] **Advanced timecode features**: Support for external timecode sources, LTC, or manual entry
-- [ ] **Customizable color chart**: Support for different calibration charts
-- [ ] **User authentication** (if backend is enabled)
-- [ ] **UI/UX polish**: More themes, dark/light mode toggle, accessibility improvements
-- [ ] **Mobile optimizations**: Enhanced touch support and layout for phones/tablets
-- [ ] **Export enhancements**: PDF export, more CSV fields, batch export
-- [ ] **Cloud backup**: Google Drive/Dropbox integration (optional)
+### Phase 1 - Local Improvements (1-2 weeks)
+#### Quick Wins (1-2 days each)
+- [ ] Add favicon and app icon
+- [ ] Implement dark/light mode toggle
+- [ ] Improve landscape mode support for mobile
+- [ ] Add basic error handling and user feedback
+- [ ] Enhance mobile keyboard handling
+- [ ] Optimize basic localStorage usage
+
+#### Core Features (3-7 days each)
+- [ ] Implement PDF export
+- [ ] Add MarkerBox for Premiere notes export
+- [ ] Add haptic feedback for mobile devices
+- [ ] Implement notes categories and tags
+- [ ] Add search and filter functionality
+- [ ] Set up proper error boundaries
+- [ ] Migrate to TypeScript
+- [ ] Implement state management (Redux/Context)
+- [ ] Add unit and integration tests
+- [ ] Set up logging system
+
+#### Advanced Local Features (1-2 weeks each)
+- [ ] Implement AI integration (client-side)
+- [ ] Add advanced localStorage optimization with compression
+- [ ] Set up service worker for offline support
+- [ ] Implement virtual scrolling for large note lists
+
+### Phase 2 - Server Integration (3-6 weeks)
+#### Basic Server Features (1-2 weeks each)
+- [ ] Set up user authentication system
+- [ ] Implement basic user management
+- [ ] Add simple project management
+- [ ] Set up basic real-time sync
+
+#### Advanced Server Features (2-4 weeks each)
+- [ ] Implement QR code sharing system
+- [ ] Add advanced real-time sync between devices
+- [ ] Develop advanced project management
+- [ ] Enable multi-device collaboration
+- [ ] Set up cloud backup system
+
+### Implementation Notes
+- Phase 1 can be implemented independently and locally
+- Phase 2 requires server setup and should be planned accordingly
+- Each feature in Phase 1 can be developed and tested in isolation
+- Server features should be planned together to ensure consistent architecture
+- Consider using a BaaS (Backend as a Service) solution for Phase 2 to speed up development
+
+### Technical Dependencies
+#### Phase 1
+- TypeScript
+- Redux/Context API
+- Jest/React Testing Library
+- PDF generation library
+- Compression library
+- Service Worker API
+- Virtual scrolling library
+
+#### Phase 2
+- Authentication system (e.g., Auth0, Firebase)
+- Real-time database (e.g., Firebase, Supabase)
+- WebSocket implementation
+- QR code generation library
+- Cloud storage solution
 
 ## Getting Started
 
