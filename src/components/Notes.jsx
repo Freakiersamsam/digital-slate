@@ -29,7 +29,7 @@ function formatTime(milliseconds, isGlobal = true) {
 
 const PAUSE_THRESHOLD = 2000; // 2 seconds
 
-const Notes = forwardRef(function Notes({ slateInfo, sessionStart, useGlobalTime }, ref) {
+const Notes = forwardRef(function Notes({ slateInfo, sessionStart, useGlobalTime, takeTimerRunning, takeStartTime, takeEndTime }, ref) {
   const [noteText, setNoteText] = useState("");
   const [notes, setNotes] = useState([]);
   const [storageInfo, setStorageInfo] = useState(null);
@@ -194,6 +194,38 @@ const Notes = forwardRef(function Notes({ slateInfo, sessionStart, useGlobalTime
     }
   }
 
+  // Export notes as PDF (dynamic import for code splitting)
+  async function exportNotesPDF() {
+    if (notes.length === 0) {
+      alert('No notes to export!');
+      return;
+    }
+    const { jsPDF } = await import('jspdf');
+    const doc = new jsPDF();
+    doc.setFontSize(16);
+    doc.text('Digital Slate - Session Notes', 10, 15);
+    doc.setFontSize(12);
+    doc.text(`Production: ${slateInfo.prod || ''}`, 10, 25);
+    doc.text(`Session Start: ${new Date(sessionStart).toLocaleString()}`, 10, 32);
+    let y = 42;
+    notes.forEach((note, i) => {
+      if (y > 270) {
+        doc.addPage();
+        y = 20;
+      }
+      doc.text(
+        `[${note.timecodeIn} | +${note.relativeTime}]${note.slateInfo && (note.slateInfo.scene || note.slateInfo.take) ? ` (Scene: ${note.slateInfo.scene || ''} Take: ${note.slateInfo.take || ''})` : ''}`,
+        10,
+        y
+      );
+      y += 7;
+      doc.text(note.content, 14, y);
+      y += 10;
+    });
+    const sessionDate = new Date().toISOString().slice(0, 10);
+    doc.save(`video-shoot-notes-${sessionDate}.pdf`);
+  }
+
   // Add touch handling for note deletion
   const [touchStartTime, setTouchStartTime] = useState(null);
   const [touchStartX, setTouchStartX] = useState(null);
@@ -262,6 +294,19 @@ const Notes = forwardRef(function Notes({ slateInfo, sessionStart, useGlobalTime
     };
   }, []);
 
+  // Timer logic for the notes tab
+  useEffect(() => {
+    let interval;
+    if (takeTimerRunning) {
+      interval = setInterval(() => setNow(Date.now()), 10);
+    } else if (takeEndTime) {
+      setNow(takeEndTime);
+    } else {
+      setNow(sessionStart); // show zero before take starts
+    }
+    return () => clearInterval(interval);
+  }, [takeTimerRunning, takeEndTime, sessionStart]);
+
   return (
     <div className="notes-container">
       {showStorageWarning && (
@@ -270,13 +315,20 @@ const Notes = forwardRef(function Notes({ slateInfo, sessionStart, useGlobalTime
         </div>
       )}
       <div className="notes-timecode-bar">
-        <span className="notes-timecode">{formatTime(now - sessionStart, false)}</span>
+        <span className="notes-timecode">{
+          takeStartTime
+            ? (takeTimerRunning
+                ? formatTime(now - takeStartTime, false)
+                : formatTime((takeEndTime || now) - takeStartTime, false))
+            : '00:00:00.000'
+        }</span>
       </div>
       <div className="notes-header">
         <div className="notes-title">Session Notes</div>
         <div className="notes-actions">
           <button className="export-btn" onClick={handleExportAll}>Backup All</button>
           <button className="export-btn" onClick={clearSession}>Clear Session</button>
+          <button className="export-btn" onClick={exportNotesPDF}>Export PDF</button>
         </div>
       </div>
       <div className="note-input-container">

@@ -66,61 +66,69 @@ export default function App() {
 
   // Start take (SYNC)
   function handleSync() {
-    playBeep();
-    setShowColorChart(true);
-    setSyncStatus('TAKE RUNNING');
-    setIsPaused(true);
-    setTimeout(() => {
-      setShowColorChart(false);
+    try {
+      playBeep();
+      setShowColorChart(true);
+      setSyncStatus('TAKE RUNNING');
+      setIsPaused(true);
       setTimeout(() => {
-        setIsPaused(false);
-        setSyncStatus('TAKE RUNNING');
-        // Start take timer
-        const now = Date.now();
-        setTakeTimerRunning(true);
-        setTakeStartTime(now);
-        setTakeEndTime(null);
-        setTakeDuration(0);
-        // Add note for take start
-        if (notesRef.current && notesRef.current.addNoteExternal) {
-          const scene = slateInfo.scene ? `Scene ${slateInfo.scene}` : '';
-          const take = slateInfo.take ? `Take ${slateInfo.take}` : '';
-          const label = [scene, take].filter(Boolean).join(' ');
-          notesRef.current.addNoteExternal(
-            `🎬 Take started at ${formatTime(now, true)}${label ? ` (${label})` : ''}`,
-            now,
-            { ...slateInfo }
-          );
-        }
-      }, 2000);
-    }, 3000);
+        setShowColorChart(false);
+        setTimeout(() => {
+          setIsPaused(false);
+          setSyncStatus('TAKE RUNNING');
+          // Start take timer
+          const now = Date.now();
+          setTakeTimerRunning(true);
+          setTakeStartTime(now);
+          setTakeEndTime(null);
+          setTakeDuration(0);
+          // Add note for take start
+          if (notesRef.current && notesRef.current.addNoteExternal) {
+            const scene = slateInfo.scene ? `Scene ${slateInfo.scene}` : '';
+            const take = slateInfo.take ? `Take ${slateInfo.take}` : '';
+            const label = [scene, take].filter(Boolean).join(' ');
+            notesRef.current.addNoteExternal(
+              `🎬 Take started at ${formatTime(now, true)}${label ? ` (${label})` : ''}`,
+              now,
+              { ...slateInfo }
+            );
+          }
+        }, 2000);
+      }, 3000);
+    } catch (err) {
+      console.error('Error in handleSync:', err);
+    }
   }
 
   // Stop take
   function handleStopTake() {
-    const now = Date.now();
-    setTakeTimerRunning(false);
-    setTakeEndTime(now);
-    const duration = now - takeStartTime;
-    setTakeDuration(duration);
-    setSyncStatus('Ready');
-    // Add note for take end
-    if (notesRef.current && notesRef.current.addNoteExternal) {
-      const scene = slateInfo.scene ? `Scene ${slateInfo.scene}` : '';
-      const take = slateInfo.take ? `Take ${slateInfo.take}` : '';
-      const label = [scene, take].filter(Boolean).join(' ');
-      notesRef.current.addNoteExternal(
-        `⏹️ Take ended at ${formatTime(now, true)} (duration: ${formatTime(duration, false)})${label ? ` (${label})` : ''}`,
-        now,
-        { ...slateInfo }
-      );
+    try {
+      const now = Date.now();
+      setTakeTimerRunning(false);
+      setTakeEndTime(now);
+      const duration = now - takeStartTime;
+      setTakeDuration(duration);
+      setSyncStatus('Ready');
+      // Add note for take end
+      if (notesRef.current && notesRef.current.addNoteExternal) {
+        const scene = slateInfo.scene ? `Scene ${slateInfo.scene}` : '';
+        const take = slateInfo.take ? `Take ${slateInfo.take}` : '';
+        const label = [scene, take].filter(Boolean).join(' ');
+        notesRef.current.addNoteExternal(
+          `⏹️ Take ended at ${formatTime(now, true)} (duration: ${formatTime(duration, false)})${label ? ` (${label})` : ''}`,
+          now,
+          { ...slateInfo }
+        );
+      }
+      // Increment take number with animation
+      setTimeout(() => {
+        setLastTakeGlow(true);
+        setSlateInfo(prev => ({ ...prev, take: (parseInt(prev.take || '1', 10) + 1).toString() }));
+        setTimeout(() => setLastTakeGlow(false), 1200);
+      }, 300);
+    } catch (err) {
+      console.error('Error in handleStopTake:', err);
     }
-    // Increment take number with animation
-    setTimeout(() => {
-      setLastTakeGlow(true);
-      setSlateInfo(prev => ({ ...prev, take: (parseInt(prev.take || '1', 10) + 1).toString() }));
-      setTimeout(() => setLastTakeGlow(false), 1200);
-    }, 300);
   }
 
   function toggleTimeFormat() {
@@ -235,12 +243,15 @@ export default function App() {
           slateInfo={slateInfo}
         />
       </div>
-      <div id="notes-tab" className={`tab-content${tab === 'notes' ? ' active' : ''}`}>
+      <div id="notes-tab" className={`tab-content${tab === 'notes' ? ' active' : ''}`}> 
         <Notes 
           ref={notesRef}
           slateInfo={slateInfo}
           sessionStart={takeStartTime || startTime}
           useGlobalTime={useGlobalTime}
+          takeTimerRunning={takeTimerRunning}
+          takeStartTime={takeStartTime}
+          takeEndTime={takeEndTime}
         />
       </div>
     </div>
