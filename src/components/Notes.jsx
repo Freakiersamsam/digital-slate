@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useImperativeHandle, forwardRef } from 'react';
+import React, { useState, useEffect, useImperativeHandle, forwardRef, useRef } from 'react';
 import {
   saveSession,
   loadSession,
@@ -34,6 +34,9 @@ const Notes = forwardRef(function Notes({ slateInfo, sessionStart, useGlobalTime
   const [notes, setNotes] = useState([]);
   const [storageInfo, setStorageInfo] = useState(null);
   const [now, setNow] = useState(Date.now());
+  const [showStorageWarning, setShowStorageWarning] = useState(false);
+  const saveTimeout = useRef(null);
+  const lastSavedData = useRef({ notes: null, noteText: null });
 
   // Live update for time from start
   useEffect(() => {
@@ -46,57 +49,91 @@ const Notes = forwardRef(function Notes({ slateInfo, sessionStart, useGlobalTime
 
   // Load notes from localStorage on mount
   useEffect(() => {
-    const saved = loadSession(sessionId);
-    if (saved) {
-      setNotes(saved.notes || []);
-      setNoteText(saved.noteText || "");
+    try {
+      const saved = loadSession(sessionId);
+      if (saved) {
+        setNotes(saved.notes || []);
+        setNoteText(saved.noteText || "");
+      }
+      setStorageInfo(getStorageInfo());
+    } catch (err) {
+      console.error('Error loading session notes:', err);
     }
-    // Update storage info
-    setStorageInfo(getStorageInfo());
   }, [sessionId]);
 
-  // Save notes to localStorage whenever they change
+  // Debounced save notes to localStorage whenever they change
   useEffect(() => {
-    if (notes.length > 0 || noteText.trim()) {
-      saveSession(sessionId, {
-        notes,
-        noteText,
-        slateInfo,
-        sessionStart,
-        lastModified: new Date().toISOString()
-      });
-      // Update storage info after save
-      setStorageInfo(getStorageInfo());
+    if (
+      notes === lastSavedData.current.notes &&
+      noteText === lastSavedData.current.noteText
+    ) {
+      return;
     }
+    if (saveTimeout.current) clearTimeout(saveTimeout.current);
+    saveTimeout.current = setTimeout(() => {
+      try {
+        if (notes.length > 0 || noteText.trim()) {
+          saveSession(sessionId, {
+            notes,
+            noteText,
+            slateInfo,
+            sessionStart,
+            lastModified: new Date().toISOString()
+          });
+          lastSavedData.current = { notes, noteText };
+          setStorageInfo(getStorageInfo());
+        }
+      } catch (err) {
+        console.error('Error saving session notes:', err);
+      }
+    }, 400); // 400ms debounce
+    return () => clearTimeout(saveTimeout.current);
   }, [notes, noteText, sessionId, slateInfo, sessionStart]);
+
+  // Show storage warning if usage exceeds 80%
+  useEffect(() => {
+    if (storageInfo && storageInfo.usagePercentage > 80) {
+      setShowStorageWarning(true);
+    } else {
+      setShowStorageWarning(false);
+    }
+  }, [storageInfo]);
 
   // Add a new note with timestamp
   function addNote(text) {
-    if (!text.trim()) return;
-    const now = Date.now();
-    const newNote = {
-      id: Date.now(),
-      timecodeIn: formatTime(now, true),
-      relativeTime: formatTime(now - sessionStart, false),
-      timestamp: now,
-      content: text.trim(),
-      slateInfo: { ...slateInfo }
-    };
-    setNotes(prev => [...prev, newNote]);
-    setNoteText(""); // Clear the input
+    try {
+      if (!text.trim()) return;
+      const now = Date.now();
+      const newNote = {
+        id: Date.now(),
+        timecodeIn: formatTime(now, true),
+        relativeTime: formatTime(now - sessionStart, false),
+        timestamp: now,
+        content: text.trim(),
+        slateInfo: { ...slateInfo }
+      };
+      setNotes(prev => [...prev, newNote]);
+      setNoteText(""); // Clear the input
+    } catch (err) {
+      console.error('Error adding note:', err);
+    }
   }
 
   // Add note externally (from App)
   function addNoteExternal(text, timestamp, customSlateInfo) {
-    const newNote = {
-      id: timestamp,
-      timecodeIn: formatTime(timestamp, true),
-      relativeTime: formatTime(timestamp - sessionStart, false),
-      timestamp,
-      content: text,
-      slateInfo: { ...customSlateInfo }
-    };
-    setNotes(prev => [...prev, newNote]);
+    try {
+      const newNote = {
+        id: timestamp,
+        timecodeIn: formatTime(timestamp, true),
+        relativeTime: formatTime(timestamp - sessionStart, false),
+        timestamp,
+        content: text,
+        slateInfo: { ...customSlateInfo }
+      };
+      setNotes(prev => [...prev, newNote]);
+    } catch (err) {
+      console.error('Error in addNoteExternal:', err);
+    }
   }
 
   useImperativeHandle(ref, () => ({
@@ -227,6 +264,11 @@ const Notes = forwardRef(function Notes({ slateInfo, sessionStart, useGlobalTime
 
   return (
     <div className="notes-container">
+      {showStorageWarning && (
+        <div style={{color: 'var(--color-warning)', background: '#fffbe6', padding: '10px', borderRadius: '8px', marginBottom: '10px', fontWeight: 'bold', textAlign: 'center'}}>
+          Warning: Storage almost full! Please backup and clear old sessions.
+        </div>
+      )}
       <div className="notes-timecode-bar">
         <span className="notes-timecode">{formatTime(now - sessionStart, false)}</span>
       </div>
