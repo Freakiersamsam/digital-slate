@@ -2,7 +2,7 @@ import React from 'react';
 
 export default function SlateDisplay({ slateInfo }) {
   return (
-    <div className="slate-display">
+    <div className="slate-display" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', width: '100%' }}>
       <h2>Prod: {slateInfo.prod || ''}</h2>
       <h2>Roll: {slateInfo.roll || ''}</h2>
       <h2>Scene: {slateInfo.scene || ''}</h2>

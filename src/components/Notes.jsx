@@ -1,4 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
+import {
+  saveSession,
+  loadSession,
+  exportSessionCSV
+} from '../sessionStorage';
 
 function formatTime(milliseconds, isGlobal = true) {
   if (isGlobal) {
@@ -20,12 +25,15 @@ function formatTime(milliseconds, isGlobal = true) {
 
 const PAUSE_THRESHOLD = 2000; // 2 seconds
 
-export default function Notes({ slateInfo, sessionStart, useGlobalTime }) {
+export default function Notes({ slateInfo, sessionStart, useGlobalTime, timecodeInfo }) {
   const [currentText, setCurrentText] = useState('');
   const [notes, setNotes] = useState([]); // { text, timestamp }
   const [typing, setTyping] = useState(false);
   const typingTimeout = useRef(null);
   const noteStartTimestamp = useRef(null);
+
+  // Generate a sessionId for this session (could be improved for multi-session)
+  const sessionId = `${slateInfo.prod || 'default'}-${sessionStart}`;
 
   // When user types, start a new note if not already typing
   const handleInput = (e) => {
@@ -45,6 +53,13 @@ export default function Notes({ slateInfo, sessionStart, useGlobalTime }) {
           {
             text: value.trim(),
             timestamp: noteStartTimestamp.current,
+            take: slateInfo.take,
+            scene: slateInfo.scene,
+            roll: slateInfo.roll,
+            // Save timecode snapshot for this note
+            timecode: timecodeInfo && timecodeInfo.useGlobalTime
+              ? formatTime(timecodeInfo.globalTime, true)
+              : formatTime(timecodeInfo.globalTime - timecodeInfo.startTime, false),
           },
         ]);
         setCurrentText('');
@@ -60,6 +75,19 @@ export default function Notes({ slateInfo, sessionStart, useGlobalTime }) {
     };
   }, []);
 
+  // Load notes from localStorage on mount
+  useEffect(() => {
+    const saved = loadSession(sessionId);
+    if (saved && Array.isArray(saved.notes)) {
+      setNotes(saved.notes);
+    }
+  }, [sessionId]);
+
+  // Save notes to localStorage whenever they change
+  useEffect(() => {
+    saveSession(sessionId, { notes });
+  }, [notes, sessionId]);
+
   // Optionally, allow manual save of note (e.g., on button click)
   const handleManualSave = () => {
     if (currentText.trim()) {
@@ -68,6 +96,12 @@ export default function Notes({ slateInfo, sessionStart, useGlobalTime }) {
         {
           text: currentText.trim(),
           timestamp: noteStartTimestamp.current || Date.now(),
+          take: slateInfo.take,
+          scene: slateInfo.scene,
+          roll: slateInfo.roll,
+          timecode: timecodeInfo && timecodeInfo.useGlobalTime
+            ? formatTime(timecodeInfo.globalTime, true)
+            : formatTime(timecodeInfo.globalTime - timecodeInfo.startTime, false),
         },
       ]);
       setCurrentText('');
@@ -124,6 +158,7 @@ export default function Notes({ slateInfo, sessionStart, useGlobalTime }) {
       ${notes.map((note, idx) => `
         <div class='note-entry' data-text='${note.text.replace(/'/g, "&#39;").replace(/"/g, '&quot;')}'>
           <div class='note-timestamp'><strong>Timestamp:</strong> ${formatTime(note.timestamp, true)}</div>
+          <div class='note-take'><strong>Take:</strong> ${note.take || ''} <strong>Scene:</strong> ${note.scene || ''} <strong>Roll:</strong> ${note.roll || ''}</div>
           <div class='note-text'>${note.text.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>
         </div>
       `).join('')}
@@ -145,6 +180,20 @@ export default function Notes({ slateInfo, sessionStart, useGlobalTime }) {
     window.open(url, '_blank');
   };
 
+  // Export notes as CSV (browser download)
+  const handleExportCSV = () => {
+    // Map notes to the required CSV format
+    const csvData = notes.map(note => ({
+      timecodeIn: note.timecode || (note.timestamp ? formatTime(note.timestamp, true) : ''),
+      name: 'Summary coming soon', // Placeholder for future AI summary
+      comment: note.text || '',
+      timecodeOut: note.timecode || (note.timestamp ? formatTime(note.timestamp, true) : ''), // For now, same as in
+      duration: '',    // Not tracked in this UI
+      markerType: 'Comment', // Or customize as needed
+    }));
+    exportSessionCSV(csvData, `${sessionId}.csv`);
+  };
+
   return (
     <div className="notes-container" style={{
       display: 'flex',
@@ -157,7 +206,7 @@ export default function Notes({ slateInfo, sessionStart, useGlobalTime }) {
       background: 'transparent',
     }}>
       <div className="notes-card" style={{
-        background: '#fff',
+        background: '#232946',
         borderRadius: '16px',
         boxShadow: '0 4px 24px #0002',
         padding: '32px 24px',
@@ -177,7 +226,8 @@ export default function Notes({ slateInfo, sessionStart, useGlobalTime }) {
           <div className="notes-title" style={{ fontWeight: 700, fontSize: '1.4rem', color: '#2a3d66' }}>Session Notes</div>
           <div>
             <button className="export-btn" style={{ marginRight: 8, padding: '6px 14px', borderRadius: 6, border: 'none', background: '#e3eefd', color: '#2a3d66', fontWeight: 600, cursor: 'pointer' }} onClick={handleManualSave}>Save Note</button>
-            <button className="export-btn" style={{ padding: '6px 14px', borderRadius: 6, border: 'none', background: '#2a3d66', color: '#fff', fontWeight: 600, cursor: 'pointer' }} onClick={handleExport}>Export Report</button>
+            <button className="export-btn" style={{ padding: '6px 14px', borderRadius: 6, border: 'none', background: '#2a3d66', color: '#fff', fontWeight: 600, cursor: 'pointer', marginRight: 8 }} onClick={handleExport}>Export Report</button>
+            <button className="export-btn" style={{ padding: '6px 14px', borderRadius: 6, border: 'none', background: '#27ae60', color: '#fff', fontWeight: 600, cursor: 'pointer' }} onClick={handleExportCSV}>Export CSV</button>
           </div>
         </div>
         <textarea
@@ -193,7 +243,8 @@ export default function Notes({ slateInfo, sessionStart, useGlobalTime }) {
             padding: '14px',
             fontSize: '1.1rem',
             marginBottom: '8px',
-            background: '#f9f9f9',
+            background: '#181a20',
+            color: '#fff',
             resize: 'vertical',
             boxSizing: 'border-box',
           }}

@@ -42,6 +42,10 @@ export default function App() {
   const [startTime] = useState(Date.now());
   const [syncStatus, setSyncStatus] = useState('Running');
   const globalTimerRef = useRef();
+  const [isTakeRunning, setIsTakeRunning] = useState(false);
+  const [takeIn, setTakeIn] = useState(null); // timecode in (ms)
+  const [takeOut, setTakeOut] = useState(null); // timecode out (ms)
+  const [takeSnapshots, setTakeSnapshots] = useState([]); // {in, out, take, scene, roll}
 
   useEffect(() => {
     if (!isPaused) {
@@ -66,6 +70,45 @@ export default function App() {
         setSyncStatus('Running');
       }, 2000);
     }, 3000);
+  };
+
+  // Handle take start/end
+  const handleTakeToggle = () => {
+    if (!isTakeRunning) {
+      // Start take
+      playBeep();
+      setShowColorChart(true);
+      setTimeout(() => setShowColorChart(false), 3000); // Show for 3 seconds
+      setTakeIn(Date.now());
+      setTakeOut(null);
+      setIsTakeRunning(true);
+    } else {
+      // End take
+      playBeep();
+      setTakeOut(Date.now());
+      setIsTakeRunning(false);
+      // Save snapshot for this take
+      setTakeSnapshots(snaps => [
+        ...snaps,
+        {
+          in: takeIn,
+          out: Date.now(),
+          take: slateInfo.take,
+          scene: slateInfo.scene,
+          roll: slateInfo.roll
+        }
+      ]);
+    }
+  };
+
+  // Pass timecode info to Notes for snapshotting
+  const timecodeInfo = {
+    takeIn,
+    takeOut,
+    takeSnapshots,
+    globalTime,
+    startTime,
+    useGlobalTime
   };
 
   return (
@@ -105,12 +148,28 @@ export default function App() {
               textAlign: 'center',
               letterSpacing: '0.05em',
             }}>{useGlobalTime ? formatTime(globalTime, true) : formatTime(elapsed, false)}</div>
-            <div className={`sync-status${isPaused ? ' paused' : ''}`} style={{ color: isPaused ? '#e67e22' : '#27ae60', fontWeight: 600 }}>{syncStatus}</div>
+            {isTakeRunning && takeIn && (
+              <div style={{ color: '#27ae60', fontWeight: 600, marginTop: 8 }}>
+                Take In: {formatTime(takeIn, useGlobalTime)}
+              </div>
+            )}
+            {!isTakeRunning && takeIn && takeOut && (
+              <div style={{ color: '#e67e22', fontWeight: 600, marginTop: 8 }}>
+                Take Out: {formatTime(takeOut, useGlobalTime)} | Duration: {formatTime(takeOut - takeIn, false)}
+              </div>
+            )}
           </div>
           <button className="sync-button" style={{ marginBottom: 18, padding: '10px 24px', borderRadius: 8, border: 'none', background: '#2a3d66', color: '#fff', fontWeight: 600, fontSize: '1rem', cursor: 'pointer' }} onClick={handleSync}>SYNC</button>
-          <div className="slate-info" style={{ width: '100%' }}>
-            <h3 style={{ color: '#2a3d66', marginBottom: 8 }}>Film Slate Information</h3>
+          <div className="slate-info" style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+            <h3 style={{ color: '#2a3d66', marginBottom: 8, textAlign: 'center' }}>Film Slate Information</h3>
             <SlateForm slateInfo={slateInfo} setSlateInfo={setSlateInfo} />
+            <button
+              className="take-toggle-btn"
+              style={{ marginTop: 18, padding: '10px 24px', borderRadius: 8, border: 'none', background: isTakeRunning ? '#e74c3c' : '#27ae60', color: '#fff', fontWeight: 600, fontSize: '1rem', cursor: 'pointer' }}
+              onClick={handleTakeToggle}
+            >
+              {isTakeRunning ? 'End Take' : 'Start Take'}
+            </button>
           </div>
           <div className="controls" style={{ width: '100%', marginTop: 12 }}>
             <button className="time-format-toggle" style={{ padding: '6px 14px', borderRadius: 6, border: 'none', background: '#e3eefd', color: '#2a3d66', fontWeight: 600, cursor: 'pointer' }} onClick={() => setUseGlobalTime(v => !v)}>
@@ -121,7 +180,7 @@ export default function App() {
         </div>
       </div>
       <div className={`tab-content${tab === 'notes' ? ' active' : ''}`} style={{ width: '100%', display: tab === 'notes' ? 'flex' : 'none', justifyContent: 'center' }}>
-        <Notes slateInfo={slateInfo} sessionStart={startTime} useGlobalTime={useGlobalTime} />
+        <Notes slateInfo={slateInfo} sessionStart={startTime} useGlobalTime={useGlobalTime} timecodeInfo={timecodeInfo} />
       </div>
     </div>
   );

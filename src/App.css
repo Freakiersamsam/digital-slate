@@ -151,31 +151,42 @@ body, #root {
   letter-spacing: 0.04em;
 }
 .slate-form {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 18px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px 24px;
+  justify-content: center;
+  align-items: flex-start;
+  width: 100%;
+  margin-bottom: 12px;
 }
-.slate-form .slate-field {
+.slate-field {
   display: flex;
   flex-direction: column;
+  min-width: 160px;
+  flex: 1 1 180px;
+  margin-bottom: 0;
 }
-.slate-form .slate-field.full-width {
-  grid-column: 1 / -1;
+.slate-field.full-width {
+  flex-basis: 100%;
+  min-width: 320px;
 }
 .slate-form label {
-  color: #ccc;
-  font-size: 0.95rem;
-  margin-bottom: 5px;
+  color: #b0b8d1;
+  font-size: 1rem;
+  margin-bottom: 6px;
   font-weight: 500;
+  letter-spacing: 0.01em;
 }
 .slate-form input {
-  background: #181a20;
-  border: 1px solid #555;
+  background: #232946;
+  border: 1.5px solid #444;
   color: #fff;
-  padding: 12px;
-  border-radius: 7px;
-  font-size: 15px;
+  padding: 13px 14px;
+  border-radius: 8px;
+  font-size: 1.05rem;
+  margin-bottom: 0;
   transition: border-color 0.2s, box-shadow 0.2s;
+  box-shadow: 0 1px 4px #0002;
 }
 .slate-form input:focus {
   outline: none;

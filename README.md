@@ -1,12 +1,58 @@
-# React + Vite
+# Digital Slate
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A modern web app for digital film slating, camera synchronization, and note-taking on set. Built with React and Vite, it provides a clean, responsive interface for tracking takes, timecodes, and production notes, with easy CSV export for post-production workflows.
 
-Currently, two official plugins are available:
+## Features
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- Modern, clean, and responsive UI
+- Digital film slate: track production, scene, take, roll, camera, director, and notes
+- Timecode display (global and session-relative)
+- Start/End Take with beep (bip) and color chart flash
+- Take timing: snapshot timecode in/out and duration
+- Notes system: timestamped notes, associated with takes and scenes
+- Notes auto-save to browser (localStorage)
+- CSV export of notes and takes (with timecode in/out, comment, and placeholder for AI summary)
+- HTML report export for session notes
+- Color chart display for camera calibration
+- Fully offline-capable (no backend required)
+- Backend-ready code structure for future cloud sync
 
-## Expanding the ESLint configuration
+## TODO / Roadmap
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+- [ ] **AI summary for notes**: Use AI to generate a summary for each note (currently a placeholder in CSV)
+- [ ] **Backend integration**: Optionally sync sessions/notes to a server for multi-device access
+- [ ] **Multi-session management**: UI for managing multiple sessions/projects
+- [ ] **Advanced timecode features**: Support for external timecode sources, LTC, or manual entry
+- [ ] **Customizable color chart**: Support for different calibration charts
+- [ ] **User authentication** (if backend is enabled)
+- [ ] **UI/UX polish**: More themes, dark/light mode toggle, accessibility improvements
+- [ ] **Mobile optimizations**: Enhanced touch support and layout for phones/tablets
+- [ ] **Export enhancements**: PDF export, more CSV fields, batch export
+- [ ] **Cloud backup**: Google Drive/Dropbox integration (optional)
+
+## Getting Started
+
+To run locally:
+
+```sh
+npm install
+npm run dev
+```
+
+To build and deploy to GitHub Pages:
+
+```sh
+npm run build
+npm run deploy
+```
+
+## Backend Server for CSV Export (optional)
+
+To run the backend server (for saving and exporting session CSV files):
+
+```sh
+npm install
+npm run server
+```
+
+The server will listen on port 5000 by default.
