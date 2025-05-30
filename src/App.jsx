@@ -71,15 +71,16 @@ export default function App() {
       setShowColorChart(true);
       setSyncStatus('TAKE RUNNING');
       setIsPaused(true);
+      // Record the exact time the sync button is clicked
+      const syncClickTime = Date.now();
       setTimeout(() => {
         setShowColorChart(false);
         setTimeout(() => {
           setIsPaused(false);
           setSyncStatus('TAKE RUNNING');
-          // Start take timer
-          const now = Date.now();
+          // Use the original syncClickTime for take start
           setTakeTimerRunning(true);
-          setTakeStartTime(now);
+          setTakeStartTime(syncClickTime);
           setTakeEndTime(null);
           setTakeDuration(0);
           // Add note for take start
@@ -88,8 +89,8 @@ export default function App() {
             const take = slateInfo.take ? `Take ${slateInfo.take}` : '';
             const label = [scene, take].filter(Boolean).join(' ');
             notesRef.current.addNoteExternal(
-              `🎬 Take started at ${formatTime(now, true)}${label ? ` (${label})` : ''}`,
-              now,
+              `🎬 Take started at ${formatTime(syncClickTime, true)}${label ? ` (${label})` : ''}`,
+              syncClickTime,
               { ...slateInfo }
             );
           }
