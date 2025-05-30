@@ -1,11 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import SlateForm from './components/SlateForm';
 import SlateDisplay from './components/SlateDisplay';
 import ColorChart from './components/ColorChart';
-import TakeTimer from './components/TakeTimer';
-import Report from './components/Report';
+import Notes from './components/Notes';
 
-function playBip() {
+function playBeep() {
   const ctx = new (window.AudioContext || window.webkitAudioContext)();
   const o = ctx.createOscillator();
   o.type = 'sine';
@@ -15,46 +14,88 @@ function playBip() {
   setTimeout(() => o.stop(), 200);
 }
 
+function formatTime(ms, isGlobal = true) {
+  if (isGlobal) {
+    const date = new Date(ms);
+    const hours = date.getHours().toString().padStart(2, '0');
+    const minutes = date.getMinutes().toString().padStart(2, '0');
+    const seconds = date.getSeconds().toString().padStart(2, '0');
+    const msStr = date.getMilliseconds().toString().padStart(3, '0');
+    return `${hours}:${minutes}:${seconds}.${msStr}`;
+  } else {
+    const totalSeconds = Math.floor(ms / 1000);
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+    const msStr = (ms % 1000).toString().padStart(3, '0');
+    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}.${msStr}`;
+  }
+}
+
 export default function App() {
-  const [slateInfo, setSlateInfo] = useState({ scene: '', take: '', director: '' });
+  const [tab, setTab] = useState('timecode');
+  const [slateInfo, setSlateInfo] = useState({ prod: '', roll: '', scene: '', take: '', director: '', camera: '', notes: '' });
   const [showColorChart, setShowColorChart] = useState(false);
-  const [takeRunning, setTakeRunning] = useState(false);
-  const [notes, setNotes] = useState([]);
-  const [report, setReport] = useState(null);
+  const [isPaused, setIsPaused] = useState(false);
+  const [useGlobalTime, setUseGlobalTime] = useState(true);
+  const [globalTime, setGlobalTime] = useState(Date.now());
+  const [startTime] = useState(Date.now());
+  const [syncStatus, setSyncStatus] = useState('Running');
+  const globalTimerRef = useRef();
 
-  const handleStartTake = () => {
-    playBip();
+  useEffect(() => {
+    if (!isPaused) {
+      globalTimerRef.current = setInterval(() => setGlobalTime(Date.now()), 10);
+    } else {
+      clearInterval(globalTimerRef.current);
+    }
+    return () => clearInterval(globalTimerRef.current);
+  }, [isPaused]);
+
+  const elapsed = globalTime - startTime;
+
+  const handleSync = () => {
+    playBeep();
+    setShowColorChart(true);
+    setSyncStatus('PAUSED - SYNCING');
+    setIsPaused(true);
     setTimeout(() => {
-      setShowColorChart(true);
+      setShowColorChart(false);
       setTimeout(() => {
-        setShowColorChart(false);
-        setTakeRunning(true);
-      }, 2000); // Show color chart for 2 seconds
-    }, 200); // Bip duration
-  };
-
-  const handleEndTake = (duration) => {
-    setTakeRunning(false);
-    setReport({ ...slateInfo, duration, notes: [...notes] });
-    setNotes([]);
+        setIsPaused(false);
+        setSyncStatus('Running');
+      }, 2000);
+    }, 3000);
   };
 
   return (
-    <div style={{ padding: 20 }}>
-      {!takeRunning && !report && (
-        <SlateForm slateInfo={slateInfo} setSlateInfo={setSlateInfo} onStartTake={handleStartTake} />
-      )}
-      <SlateDisplay slateInfo={slateInfo} />
-      <ColorChart visible={showColorChart} />
-      {takeRunning && (
-        <TakeTimer running={takeRunning} onEnd={handleEndTake} notes={notes} setNotes={setNotes} />
-      )}
-      {report && (
-        <Report slateInfo={slateInfo} duration={report.duration} notes={report.notes} />
-      )}
-      {report && (
-        <button onClick={() => setReport(null)}>New Take</button>
-      )}
+    <div className="container">
+      <div className="tabs">
+        <button className={`tab${tab === 'timecode' ? ' active' : ''}`} onClick={() => setTab('timecode')}>Timecode Sync</button>
+        <button className={`tab${tab === 'notes' ? ' active' : ''}`} onClick={() => setTab('notes')}>Notes</button>
+      </div>
+      <div className={`tab-content${tab === 'timecode' ? ' active' : ''}`}>
+        <div className="timecode-display">
+          <div className="timecode">{useGlobalTime ? formatTime(globalTime, true) : formatTime(elapsed, false)}</div>
+          <div className={`sync-status${isPaused ? ' paused' : ''}`}>{syncStatus}</div>
+        </div>
+        <div style={{ textAlign: 'center' }}>
+          <button className="sync-button" onClick={handleSync}>SYNC</button>
+          <div className="slate-info">
+            <h3>Film Slate Information</h3>
+            <SlateForm slateInfo={slateInfo} setSlateInfo={setSlateInfo} />
+          </div>
+          <div className="controls">
+            <button className="time-format-toggle" onClick={() => setUseGlobalTime(v => !v)}>
+              Switch to: <span id="format-toggle-text">{useGlobalTime ? 'Time from Start' : 'Global Time'}</span>
+            </button>
+          </div>
+        </div>
+        <ColorChart visible={showColorChart} />
+      </div>
+      <div className={`tab-content${tab === 'notes' ? ' active' : ''}`}>
+        <Notes slateInfo={slateInfo} sessionStart={startTime} useGlobalTime={useGlobalTime} />
+      </div>
     </div>
   );
 }
