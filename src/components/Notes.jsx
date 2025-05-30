@@ -1,9 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   saveSession,
   loadSession,
-  exportSessionCSV
-} from '../sessionStorage';
+  exportSessionCSV,
+  exportAllSessions,
+  getStorageInfo
+} from '../localStorage';
 
 function formatTime(milliseconds, isGlobal = true) {
   if (isGlobal) {
@@ -27,93 +29,147 @@ const PAUSE_THRESHOLD = 2000; // 2 seconds
 
 export default function Notes({ slateInfo, sessionStart, useGlobalTime, timecodeInfo }) {
   const [noteText, setNoteText] = useState("");
+  const [notes, setNotes] = useState([]);
+  const [storageInfo, setStorageInfo] = useState(null);
 
-  // Generate a sessionId for this session (could be improved for multi-session)
+  // Generate a sessionId for this session
   const sessionId = `${slateInfo.prod || 'default'}-${sessionStart}`;
 
   // Load notes from localStorage on mount
   useEffect(() => {
     const saved = loadSession(sessionId);
-    if (saved && Array.isArray(saved.notes)) {
-      setNotes(saved.notes);
+    if (saved) {
+      setNotes(saved.notes || []);
+      setNoteText(saved.noteText || "");
     }
+    // Update storage info
+    setStorageInfo(getStorageInfo());
   }, [sessionId]);
 
   // Save notes to localStorage whenever they change
   useEffect(() => {
-    saveSession(sessionId, { notes });
-  }, [notes, sessionId]);
+    if (notes.length > 0 || noteText.trim()) {
+      saveSession(sessionId, {
+        notes,
+        noteText,
+        slateInfo,
+        sessionStart,
+        lastModified: new Date().toISOString()
+      });
+      // Update storage info after save
+      setStorageInfo(getStorageInfo());
+    }
+  }, [notes, noteText, sessionId, slateInfo, sessionStart]);
 
-  function exportNotes() {
-    if (!noteText.trim()) {
+  // Add a new note with timestamp
+  function addNote(text) {
+    if (!text.trim()) return;
+    
+    const now = Date.now();
+    const newNote = {
+      id: Date.now(),
+      timecodeIn: formatTime(now, true),
+      relativeTime: formatTime(now - sessionStart, false),
+      timestamp: now,
+      content: text.trim(),
+      slateInfo: { ...slateInfo }
+    };
+    
+    setNotes(prev => [...prev, newNote]);
+    setNoteText(""); // Clear the input
+  }
+
+  // Handle note input
+  function handleNoteInput(e) {
+    const text = e.target.value;
+    setNoteText(text);
+    
+    // Auto-save the current note text
+    if (text.trim()) {
+      saveSession(sessionId, {
+        notes,
+        noteText: text,
+        slateInfo,
+        sessionStart,
+        lastModified: new Date().toISOString()
+      });
+    }
+  }
+
+  // Handle key press for adding notes
+  function handleKeyPress(e) {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      addNote(noteText);
+    }
+  }
+
+  // Delete a note
+  function deleteNote(noteId) {
+    setNotes(prev => prev.filter(note => note.id !== noteId));
+  }
+
+  // Export notes as CSV
+  function exportNotesCSV() {
+    if (notes.length === 0) {
       alert('No notes to export!');
       return;
     }
-    const sessionDate = new Date();
-    let exportContent = '';
-    exportContent += '==============================================\n';
-    exportContent += '           VIDEO SHOOT NOTES\n';
-    exportContent += '==============================================\n\n';
-    exportContent += 'SESSION INFORMATION:\n';
-    exportContent += `Date: ${sessionDate.toLocaleDateString()}\n`;
-    exportContent += `Time: ${sessionDate.toLocaleTimeString()}\n`;
-    exportContent += `Session Start: ${formatTime(sessionStart, true)} (Global) / ${formatTime(0, false)} (Relative)\n\n`;
-    exportContent += 'SLATE INFORMATION:\n';
-    exportContent += `Production: ${slateInfo.prod || ''}\n`;
-    exportContent += `Director: ${slateInfo.director || ''}\n`;
-    exportContent += `Scene: ${slateInfo.scene || ''}\n`;
-    exportContent += `Take: ${slateInfo.take || ''}\n`;
-    exportContent += `Roll: ${slateInfo.roll || ''}\n`;
-    exportContent += `Camera: ${slateInfo.camera || ''}\n`;
-    exportContent += `Slate Notes: ${slateInfo.notes || ''}\n\n`;
-    exportContent += '==============================================\n';
-    exportContent += '                 NOTES\n';
-    exportContent += '==============================================\n\n';
-    // Add timestamps to each note line
-    const lines = noteText.split('\n');
-    const now = Date.now();
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i];
-      if (line.trim() && (i === 0 || lines[i-1].trim() === '')) {
-        const globalTime = formatTime(now, true);
-        const relativeTime = formatTime(now - sessionStart, false);
-        exportContent += `[${globalTime} | +${relativeTime}] `;
-      }
-      exportContent += line + '\n';
-    }
-    exportContent += '\n\n==============================================\n';
-    exportContent += 'Legend: [Global Time | +Time from Start]\n';
-    exportContent += '==============================================\n';
-    try {
-      const blob = new Blob([exportContent], { type: 'text/plain;charset=utf-8' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `video-shoot-notes-${sessionDate.toISOString().slice(0,10)}.txt`;
-      link.style.display = 'none';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-      alert('Notes exported successfully!');
-    } catch (error) {
-      console.error('Export failed:', error);
-      alert('Export failed. Please try again.');
-    }
+    const sessionDate = new Date().toISOString().slice(0, 10);
+    exportSessionCSV({ notes }, `video-shoot-notes-${sessionDate}.csv`);
+  }
+
+  // Export all sessions
+  function handleExportAll() {
+    exportAllSessions(`digital-slate-backup-${new Date().toISOString().slice(0, 10)}.json`);
   }
 
   return (
     <div className="notes-container">
       <div className="notes-header">
         <div className="notes-title">Session Notes</div>
-        <button className="export-btn" onClick={exportNotes}>Export Notes</button>
+        <div className="notes-actions">
+          {storageInfo && (
+            <div className="storage-info">
+              {Math.round(storageInfo.usagePercentage)}% used
+              ({storageInfo.sessionCount} sessions)
+            </div>
+          )}
+          <button className="export-btn" onClick={exportNotesCSV}>Export CSV</button>
+          <button className="export-btn" onClick={handleExportAll}>Backup All</button>
+        </div>
       </div>
-      <textarea
-        className="note-editor"
-        value={noteText}
-        onChange={e => setNoteText(e.target.value)}
-        placeholder={`Start typing your notes here...\n\nEach time you press Enter, a new timestamped entry will be created automatically.\n\nYou can write paragraphs, add bullet points, or structure your notes however you like.`}
-      />
+      
+      <div className="notes-list">
+        {notes.map(note => (
+          <div key={note.id} className="note-item">
+            <div className="note-timestamp">
+              [{note.timecodeIn} | +{note.relativeTime}]
+            </div>
+            <div className="note-content">{note.content}</div>
+            <button 
+              className="delete-note"
+              onClick={() => deleteNote(note.id)}
+              title="Delete note"
+            >
+              ×
+            </button>
+          </div>
+        ))}
+      </div>
+
+      <div className="note-input-container">
+        <textarea
+          className="note-editor"
+          value={noteText}
+          onChange={handleNoteInput}
+          onKeyPress={handleKeyPress}
+          placeholder="Type your note and press Enter to add it..."
+        />
+        <div className="note-input-help">
+          Press Enter to add a note, Shift+Enter for new line
+        </div>
+      </div>
     </div>
   );
 } 
