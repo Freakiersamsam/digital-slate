@@ -212,7 +212,9 @@ export default function App() {
       </div>
       <div id="timecode-tab" className={`tab-content${tab === 'timecode' ? ' active' : ''}`}> 
         <div className="timecode-display">
-          <div className="timecode" id="timecode">{useGlobalTime ? formatTime(globalTime, true) : (takeTimerRunning && takeStartTime ? formatTime(globalTime - takeStartTime, false) : formatTime(elapsed, false))}</div>
+          <div className="notes-timecode-bar">
+            <span className="notes-timecode">{useGlobalTime ? formatTime(globalTime, true) : (takeTimerRunning && takeStartTime ? formatTime(globalTime - takeStartTime, false) : formatTime(elapsed, false))}</span>
+          </div>
           <div className={`sync-status${takeTimerRunning ? ' paused' : ''}`} id="sync-status">{syncStatus}</div>
         </div>
         <div style={{ textAlign: 'center' }}>

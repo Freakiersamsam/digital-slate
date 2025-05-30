@@ -21,11 +21,11 @@ A modern web app for digital film slating, camera synchronization, and note-taki
 
 ### Phase 1 - Local Improvements (1-2 weeks)
 #### Quick Wins (1-2 days each)
-- [ ] Add favicon and app icon
-- [ ] Implement dark/light mode toggle
-- [ ] Improve landscape mode support for mobile
+- [x] Add favicon and app icon
+- [x] Implement dark/light mode toggle
+- [x] Improve landscape mode support for mobile
 - [ ] Add basic error handling and user feedback
-- [ ] Enhance mobile keyboard handling
+- [x] Enhance mobile keyboard handling
 - [ ] Optimize basic localStorage usage
 
 #### Core Features (3-7 days each)
