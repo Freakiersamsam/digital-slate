@@ -5,7 +5,8 @@ import {
   exportSessionCSV,
   exportAllSessions,
   getStorageInfo,
-  removeSession
+  removeSession,
+  clearAllData
 } from '../sessionStorage';
 
 function formatTime(milliseconds, isGlobal = true) {
@@ -28,7 +29,7 @@ function formatTime(milliseconds, isGlobal = true) {
 
 const PAUSE_THRESHOLD = 2000; // 2 seconds
 
-const Notes = forwardRef(function Notes({ slateInfo, sessionStart, useGlobalTime, takeTimerRunning, onSync, onStopTake }, ref) {
+const Notes = forwardRef(function Notes({ slateInfo, sessionStart, useGlobalTime }, ref) {
   const [noteText, setNoteText] = useState("");
   const [notes, setNotes] = useState([]);
   const [storageInfo, setStorageInfo] = useState(null);
@@ -147,14 +148,64 @@ const Notes = forwardRef(function Notes({ slateInfo, sessionStart, useGlobalTime
     exportAllSessions(`digital-slate-backup-${new Date().toISOString().slice(0, 10)}.json`);
   }
 
-  // Clear session notes
+  // Clear session notes (now clears all sessions)
   function clearSession() {
-    if (window.confirm('Are you sure you want to clear all notes for this session?')) {
+    if (window.confirm("Are you sure you want to clear all sessions (all timer data ever)?")) {
+      clearAllData();
       setNotes([]);
       setNoteText("");
-      removeSession(`${slateInfo.prod || 'default'}-${sessionStart}`);
     }
   }
+
+  // Add touch handling for note deletion
+  const [touchStartTime, setTouchStartTime] = useState(null);
+  const [touchStartX, setTouchStartX] = useState(null);
+  const [activeNoteId, setActiveNoteId] = useState(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState(null);
+
+  const handleNoteTouchStart = (e, noteId) => {
+    setTouchStartTime(Date.now());
+    setTouchStartX(e.touches[0].clientX);
+    setActiveNoteId(noteId);
+  };
+
+  const handleNoteTouchMove = (e) => {
+    if (!touchStartTime || !activeNoteId) return;
+    const touchX = e.touches[0].clientX;
+    const deltaX = touchX - touchStartX;
+    // If swiped left more than 50px, show delete confirmation
+    const noteElement = document.querySelector(`[data-note-id="${activeNoteId}"]`);
+    if (deltaX < -50) {
+      if (noteElement) noteElement.classList.add('swipe-to-delete');
+      setConfirmDeleteId(activeNoteId);
+    } else {
+      if (noteElement) noteElement.classList.remove('swipe-to-delete');
+      setConfirmDeleteId(null);
+    }
+  };
+
+  const handleNoteTouchEnd = (e) => {
+    // Reset touch state
+    setTouchStartTime(null);
+    setTouchStartX(null);
+    setActiveNoteId(null);
+  };
+
+  // Add mobile keyboard handling
+  useEffect(() => {
+    const handleMobileKeyboard = () => {
+      // Scroll to input when keyboard appears
+      const input = document.querySelector('.note-editor');
+      if (input && document.activeElement === input) {
+        setTimeout(() => {
+          input.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 100);
+      }
+    };
+
+    window.addEventListener('resize', handleMobileKeyboard);
+    return () => window.removeEventListener('resize', handleMobileKeyboard);
+  }, []);
 
   return (
     <div className="notes-container">
@@ -164,9 +215,6 @@ const Notes = forwardRef(function Notes({ slateInfo, sessionStart, useGlobalTime
       <div className="notes-header">
         <div className="notes-title">Session Notes</div>
         <div className="notes-actions">
-          <button className="sync-button" onClick={takeTimerRunning ? onStopTake : onSync}>
-            {takeTimerRunning ? 'STOP TAKE' : 'SYNC'}
-          </button>
           <button className="export-btn" onClick={handleExportAll}>Backup All</button>
           <button className="export-btn" onClick={clearSession}>Clear Session</button>
         </div>
@@ -178,14 +226,23 @@ const Notes = forwardRef(function Notes({ slateInfo, sessionStart, useGlobalTime
           onChange={handleNoteInput}
           onKeyPress={handleKeyPress}
           placeholder="Type your note and press Enter to add it..."
+          enterKeyHint="send"
         />
         <div className="note-input-help">
           Press Enter to add a note, Shift+Enter for new line
+          <span className="mobile-help">(Swipe left on a note to delete, then confirm)</span>
         </div>
       </div>
       <div className="notes-list">
         {[...notes].reverse().map(note => (
-          <div key={note.id} className="note-item">
+          <div 
+            key={note.id} 
+            className={`note-item${confirmDeleteId === note.id ? ' swipe-to-delete' : ''}`}
+            data-note-id={note.id}
+            onTouchStart={(e) => handleNoteTouchStart(e, note.id)}
+            onTouchMove={handleNoteTouchMove}
+            onTouchEnd={handleNoteTouchEnd}
+          >
             <div className="note-meta-row">
               <span className="note-timestamp">
                 [{note.timecodeIn} | +{note.relativeTime}]
@@ -199,13 +256,23 @@ const Notes = forwardRef(function Notes({ slateInfo, sessionStart, useGlobalTime
               )}
             </div>
             <div className="note-content">{note.content}</div>
-            <button 
-              className="delete-note"
-              onClick={() => deleteNote(note.id)}
-              title="Delete note"
-            >
-              ×
-            </button>
+            {confirmDeleteId === note.id ? (
+              <button 
+                className="delete-note confirm"
+                onClick={() => { deleteNote(note.id); setConfirmDeleteId(null); }}
+                aria-label="Confirm delete note"
+              >
+                Confirm Delete
+              </button>
+            ) : (
+              <button 
+                className="delete-note"
+                onClick={() => setConfirmDeleteId(note.id)}
+                aria-label="Delete note"
+              >
+                Delete
+              </button>
+            )}
           </div>
         ))}
       </div>
