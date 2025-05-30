@@ -1,6 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
 import SlateForm from './components/SlateForm';
-import SlateDisplay from './components/SlateDisplay';
 import ColorChart from './components/ColorChart';
 import Notes from './components/Notes';
 
@@ -8,10 +7,10 @@ function playBeep() {
   const ctx = new (window.AudioContext || window.webkitAudioContext)();
   const o = ctx.createOscillator();
   o.type = 'sine';
-  o.frequency.value = 1000;
+  o.frequency.value = 800;
   o.connect(ctx.destination);
   o.start();
-  setTimeout(() => o.stop(), 200);
+  setTimeout(() => o.stop(), 300);
 }
 
 function formatTime(ms, isGlobal = true) {
@@ -42,10 +41,6 @@ export default function App() {
   const [startTime] = useState(Date.now());
   const [syncStatus, setSyncStatus] = useState('Running');
   const globalTimerRef = useRef();
-  const [isTakeRunning, setIsTakeRunning] = useState(false);
-  const [takeIn, setTakeIn] = useState(null); // timecode in (ms)
-  const [takeOut, setTakeOut] = useState(null); // timecode out (ms)
-  const [takeSnapshots, setTakeSnapshots] = useState([]); // {in, out, take, scene, roll}
 
   useEffect(() => {
     if (!isPaused) {
@@ -58,7 +53,7 @@ export default function App() {
 
   const elapsed = globalTime - startTime;
 
-  const handleSync = () => {
+  function syncTimecode() {
     playBeep();
     setShowColorChart(true);
     setSyncStatus('PAUSED - SYNCING');
@@ -70,46 +65,11 @@ export default function App() {
         setSyncStatus('Running');
       }, 2000);
     }, 3000);
-  };
+  }
 
-  // Handle take start/end
-  const handleTakeToggle = () => {
-    if (!isTakeRunning) {
-      // Start take
-      playBeep();
-      setShowColorChart(true);
-      setTimeout(() => setShowColorChart(false), 3000); // Show for 3 seconds
-      setTakeIn(Date.now());
-      setTakeOut(null);
-      setIsTakeRunning(true);
-    } else {
-      // End take
-      playBeep();
-      setTakeOut(Date.now());
-      setIsTakeRunning(false);
-      // Save snapshot for this take
-      setTakeSnapshots(snaps => [
-        ...snaps,
-        {
-          in: takeIn,
-          out: Date.now(),
-          take: slateInfo.take,
-          scene: slateInfo.scene,
-          roll: slateInfo.roll
-        }
-      ]);
-    }
-  };
-
-  // Pass timecode info to Notes for snapshotting
-  const timecodeInfo = {
-    takeIn,
-    takeOut,
-    takeSnapshots,
-    globalTime,
-    startTime,
-    useGlobalTime
-  };
+  function toggleTimeFormat() {
+    setUseGlobalTime(v => !v);
+  }
 
   return (
     <div className="container">
@@ -117,43 +77,27 @@ export default function App() {
         <button className={`tab${tab === 'timecode' ? ' active' : ''}`} onClick={() => setTab('timecode')}>Timecode Sync</button>
         <button className={`tab${tab === 'notes' ? ' active' : ''}`} onClick={() => setTab('notes')}>Notes</button>
       </div>
-      <div className={`tab-content${tab === 'timecode' ? ' active' : ''}`}> 
-        <div className="timecode-card">
-          <div className="timecode-display">
-            <div className="timecode">{useGlobalTime ? formatTime(globalTime, true) : formatTime(elapsed, false)}</div>
-            {isTakeRunning && takeIn && (
-              <div style={{ color: '#27ae60', fontWeight: 600, marginTop: 8 }}>
-                Take In: {formatTime(takeIn, useGlobalTime)}
-              </div>
-            )}
-            {!isTakeRunning && takeIn && takeOut && (
-              <div style={{ color: '#e67e22', fontWeight: 600, marginTop: 8 }}>
-                Take Out: {formatTime(takeOut, useGlobalTime)} | Duration: {formatTime(takeOut - takeIn, false)}
-              </div>
-            )}
-          </div>
-          <button className="sync-button" onClick={handleSync}>SYNC</button>
+      <div id="timecode-tab" className={`tab-content${tab === 'timecode' ? ' active' : ''}`}> 
+        <div className="timecode-display">
+          <div className="timecode" id="timecode">{useGlobalTime ? formatTime(globalTime, true) : formatTime(elapsed, false)}</div>
+          <div className={`sync-status${isPaused ? ' paused' : ''}`} id="sync-status">{syncStatus}</div>
+        </div>
+        <div style={{ textAlign: 'center' }}>
+          <button className="sync-button" onClick={syncTimecode}>SYNC</button>
           <div className="slate-info">
             <h3>Film Slate Information</h3>
             <SlateForm slateInfo={slateInfo} setSlateInfo={setSlateInfo} />
-            <button
-              className="take-toggle-btn"
-              style={{ marginTop: 18, padding: '10px 24px', borderRadius: 999, border: 'none', background: isTakeRunning ? '#e57373' : '#27ae60', color: '#fff', fontWeight: 600, fontSize: '1rem', cursor: 'pointer', transition: 'background 0.2s' }}
-              onClick={handleTakeToggle}
-            >
-              {isTakeRunning ? 'End Take' : 'Start Take'}
-            </button>
           </div>
           <div className="controls">
-            <button className="time-format-toggle" onClick={() => setUseGlobalTime(v => !v)}>
+            <button className="time-format-toggle" onClick={toggleTimeFormat}>
               Switch to: <span id="format-toggle-text">{useGlobalTime ? 'Time from Start' : 'Global Time'}</span>
             </button>
           </div>
-          <ColorChart visible={showColorChart} />
         </div>
+        <ColorChart visible={showColorChart} />
       </div>
-      <div className={`tab-content${tab === 'notes' ? ' active' : ''}`}>
-        <Notes slateInfo={slateInfo} sessionStart={startTime} useGlobalTime={useGlobalTime} timecodeInfo={timecodeInfo} />
+      <div id="notes-tab" className={`tab-content${tab === 'notes' ? ' active' : ''}`}>
+        <Notes slateInfo={slateInfo} sessionStart={startTime} useGlobalTime={useGlobalTime} />
       </div>
     </div>
   );

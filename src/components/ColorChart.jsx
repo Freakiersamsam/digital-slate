@@ -10,12 +10,11 @@ export default function ColorChart({ visible }) {
     '#f3f3f2', '#cfcfcf', '#a0a0a0', '#7a7a7a', '#555555', '#222222'
   ];
   return (
-    <div className="color-chart" style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 40px)', gap: 4, background: '#222', padding: 8, borderRadius: 8 }}>
-      {xriteColors.map((color, i) => (
-        <div key={color + i} style={{ width: 40, height: 40, background: color, display: 'flex', alignItems: 'center', justifyContent: 'center', color: i > 17 ? '#000' : '#fff', fontWeight: 700, fontSize: 12 }}>
-          {i + 1}
-        </div>
-      ))}
+    <div className="color-chart-overlay" style={{ display: 'block' }}>
+      <div className="color-chart-info">
+        <div>COLOR CALIBRATION CHART</div>
+        <div style={{ fontSize: '0.9rem', marginTop: 10 }}>Displaying for 3 seconds...</div>
+      </div>
     </div>
   );
 } 

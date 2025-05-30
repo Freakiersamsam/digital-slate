@@ -2,7 +2,7 @@ import React from 'react';
 
 export default function SlateForm({ slateInfo, setSlateInfo }) {
   return (
-    <form className="slate-form" onSubmit={e => e.preventDefault()}>
+    <div className="slate-grid">
       <div className="slate-field">
         <label>Scene:</label>
         <input
@@ -59,6 +59,6 @@ export default function SlateForm({ slateInfo, setSlateInfo }) {
           onChange={e => setSlateInfo({ ...slateInfo, notes: e.target.value })}
         />
       </div>
-    </form>
+    </div>
   );
 } 
