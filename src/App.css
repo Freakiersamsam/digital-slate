@@ -67,8 +67,8 @@ body, #root {
 .timecode {
   font-size: 4rem;
   font-family: 'Courier New', monospace;
-  color: var(--color-accent);
-  text-shadow: 0 0 20px var(--color-accent-hover);
+  color: #00ff88;
+  text-shadow: 0 0 20px rgba(0, 255, 136, 0.5);
   margin-bottom: 10px;
 }
 
@@ -662,10 +662,10 @@ body, #root {
 }
 .paused-timecode {
   font-size: 2.8vw;
-  color: var(--color-accent);
+  color: #00ff88;
   font-family: 'Courier New', monospace;
   margin-bottom: 0.5vw;
-  text-shadow: 0 0 16px var(--color-accent-hover);
+  text-shadow: 0 0 16px rgba(0, 255, 136, 0.6);
 }
 .slate-info-row {
   font-size: 1.3vw;
@@ -729,7 +729,7 @@ body, #root {
   font-family: 'Courier New', monospace;
   font-weight: bold;
   margin-bottom: 0.5vw;
-  text-shadow: 0 0 24px #00ff8899;
+  text-shadow: 0 0 24px rgba(0, 255, 136, 0.6);
 }
 .slate-info-horizontal {
   display: flex;
@@ -783,7 +783,7 @@ body, #root {
   font-size: 2.1rem;
   font-family: 'Courier New', monospace;
   color: #00ff88;
-  text-shadow: 0 0 10px rgba(0,255,136,0.3);
+  text-shadow: 0 0 10px rgba(0, 255, 136, 0.3);
   font-weight: 600;
   letter-spacing: 0.04em;
 }
