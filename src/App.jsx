@@ -118,17 +118,7 @@ export default function App() {
         <button className={`tab${tab === 'notes' ? ' active' : ''}`} onClick={() => setTab('notes')}>Notes</button>
       </div>
       <div className={`tab-content${tab === 'timecode' ? ' active' : ''}`}> 
-        <div className="timecode-card" style={{
-          background: 'transparent',
-          boxShadow: 'none',
-          padding: 0,
-          maxWidth: '480px',
-          width: '100%',
-          margin: '0 auto',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-        }}>
+        <div className="timecode-card">
           <div className="timecode-display">
             <div className="timecode">{useGlobalTime ? formatTime(globalTime, true) : formatTime(elapsed, false)}</div>
             {isTakeRunning && takeIn && (
