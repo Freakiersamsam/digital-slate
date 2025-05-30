@@ -195,39 +195,14 @@ export default function Notes({ slateInfo, sessionStart, useGlobalTime, timecode
   };
 
   return (
-    <div className="notes-container" style={{
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      justifyContent: 'center',
-      minHeight: '60vh',
-      width: '100%',
-      padding: '32px 0',
-      background: 'transparent',
-    }}>
-      <div className="notes-card" style={{
-        background: '#232946',
-        borderRadius: '16px',
-        boxShadow: '0 4px 24px #0002',
-        padding: '32px 24px',
-        maxWidth: '480px',
-        width: '100%',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-      }}>
-        <div className="notes-header" style={{
-          width: '100%',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          marginBottom: '18px',
-        }}>
-          <div className="notes-title" style={{ fontWeight: 700, fontSize: '1.4rem', color: '#2a3d66' }}>Session Notes</div>
+    <div className="notes-container">
+      <div className="notes-card">
+        <div className="notes-header">
+          <div className="notes-title">Session Notes</div>
           <div>
-            <button className="export-btn" style={{ marginRight: 8, padding: '6px 14px', borderRadius: 6, border: 'none', background: '#e3eefd', color: '#2a3d66', fontWeight: 600, cursor: 'pointer' }} onClick={handleManualSave}>Save Note</button>
-            <button className="export-btn" style={{ padding: '6px 14px', borderRadius: 6, border: 'none', background: '#2a3d66', color: '#fff', fontWeight: 600, cursor: 'pointer', marginRight: 8 }} onClick={handleExport}>Export Report</button>
-            <button className="export-btn" style={{ padding: '6px 14px', borderRadius: 6, border: 'none', background: '#27ae60', color: '#fff', fontWeight: 600, cursor: 'pointer' }} onClick={handleExportCSV}>Export CSV</button>
+            <button className="export-btn" onClick={handleManualSave}>Save Note</button>
+            <button className="export-btn" onClick={handleExport}>Export Report</button>
+            <button className="export-btn" onClick={handleExportCSV}>Export CSV</button>
           </div>
         </div>
         <textarea
@@ -236,19 +211,23 @@ export default function Notes({ slateInfo, sessionStart, useGlobalTime, timecode
           onChange={handleInput}
           placeholder={`Start typing your notes here...\n\nA new note entry is created when you pause typing for 2 seconds or press 'Save Note'.`}
           rows={8}
-          style={{
-            width: '100%',
-            borderRadius: '8px',
-            border: '1px solid #c3cbe3',
-            padding: '14px',
-            fontSize: '1.1rem',
-            marginBottom: '8px',
-            background: '#181a20',
-            color: '#fff',
-            resize: 'vertical',
-            boxSizing: 'border-box',
-          }}
         />
+        <div className="notes-list" style={{ width: '100%', marginTop: 24 }}>
+          {notes.length === 0 && (
+            <div style={{ color: '#bfc8f8', textAlign: 'center', marginTop: 16 }}>No notes yet.</div>
+          )}
+          {notes.map((note, idx) => (
+            <div key={idx} className="note-entry" style={{ background: '#f7f8fa', borderRadius: 10, boxShadow: '0 1px 4px #0001', marginBottom: 12, padding: '12px 16px' }}>
+              <div className="note-timestamp" style={{ color: '#7a869a', fontSize: '0.98em', marginBottom: 4 }}>
+                <strong>Timestamp:</strong> {formatTime(note.timestamp, true)}
+              </div>
+              <div className="note-take" style={{ color: '#3b4cc0', fontWeight: 500, marginBottom: 4 }}>
+                <strong>Take:</strong> {note.take || ''} <strong>Scene:</strong> {note.scene || ''} <strong>Roll:</strong> {note.roll || ''}
+              </div>
+              <div className="note-text" style={{ fontSize: '1.08em' }}>{note.text}</div>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );

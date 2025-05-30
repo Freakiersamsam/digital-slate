@@ -112,25 +112,16 @@ export default function App() {
   };
 
   return (
-    <div className="container" style={{
-      minHeight: '100vh',
-      width: '100vw',
-      display: 'flex',
-      flexDirection: 'column',
-      justifyContent: 'flex-start',
-      background: '#f9f9f9',
-      padding: '32px 0',
-    }}>
-      <div className="tabs" style={{ marginBottom: 24, alignSelf: 'center' }}>
+    <div className="container">
+      <div className="tabs">
         <button className={`tab${tab === 'timecode' ? ' active' : ''}`} onClick={() => setTab('timecode')}>Timecode Sync</button>
         <button className={`tab${tab === 'notes' ? ' active' : ''}`} onClick={() => setTab('notes')}>Notes</button>
       </div>
-      <div className={`tab-content${tab === 'timecode' ? ' active' : ''}`} style={{ width: '100%', display: tab === 'timecode' ? 'flex' : 'none', justifyContent: 'center' }}>
+      <div className={`tab-content${tab === 'timecode' ? ' active' : ''}`}> 
         <div className="timecode-card" style={{
-          background: '#fff',
-          borderRadius: '16px',
-          boxShadow: '0 4px 24px #0002',
-          padding: '32px 24px',
+          background: 'transparent',
+          boxShadow: 'none',
+          padding: 0,
           maxWidth: '480px',
           width: '100%',
           margin: '0 auto',
@@ -138,16 +129,8 @@ export default function App() {
           flexDirection: 'column',
           alignItems: 'center',
         }}>
-          <div className="timecode-display" style={{ marginBottom: 16 }}>
-            <div className="timecode" style={{ 
-              fontSize: '2rem', 
-              fontWeight: 700, 
-              color: '#2a3d66', 
-              fontFamily: 'monospace',
-              minWidth: '16ch',
-              textAlign: 'center',
-              letterSpacing: '0.05em',
-            }}>{useGlobalTime ? formatTime(globalTime, true) : formatTime(elapsed, false)}</div>
+          <div className="timecode-display">
+            <div className="timecode">{useGlobalTime ? formatTime(globalTime, true) : formatTime(elapsed, false)}</div>
             {isTakeRunning && takeIn && (
               <div style={{ color: '#27ae60', fontWeight: 600, marginTop: 8 }}>
                 Take In: {formatTime(takeIn, useGlobalTime)}
@@ -159,27 +142,27 @@ export default function App() {
               </div>
             )}
           </div>
-          <button className="sync-button" style={{ marginBottom: 18, padding: '10px 24px', borderRadius: 8, border: 'none', background: '#2a3d66', color: '#fff', fontWeight: 600, fontSize: '1rem', cursor: 'pointer' }} onClick={handleSync}>SYNC</button>
-          <div className="slate-info" style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-            <h3 style={{ color: '#2a3d66', marginBottom: 8, textAlign: 'center' }}>Film Slate Information</h3>
+          <button className="sync-button" onClick={handleSync}>SYNC</button>
+          <div className="slate-info">
+            <h3>Film Slate Information</h3>
             <SlateForm slateInfo={slateInfo} setSlateInfo={setSlateInfo} />
             <button
               className="take-toggle-btn"
-              style={{ marginTop: 18, padding: '10px 24px', borderRadius: 8, border: 'none', background: isTakeRunning ? '#e74c3c' : '#27ae60', color: '#fff', fontWeight: 600, fontSize: '1rem', cursor: 'pointer' }}
+              style={{ marginTop: 18, padding: '10px 24px', borderRadius: 999, border: 'none', background: isTakeRunning ? '#e57373' : '#27ae60', color: '#fff', fontWeight: 600, fontSize: '1rem', cursor: 'pointer', transition: 'background 0.2s' }}
               onClick={handleTakeToggle}
             >
               {isTakeRunning ? 'End Take' : 'Start Take'}
             </button>
           </div>
-          <div className="controls" style={{ width: '100%', marginTop: 12 }}>
-            <button className="time-format-toggle" style={{ padding: '6px 14px', borderRadius: 6, border: 'none', background: '#e3eefd', color: '#2a3d66', fontWeight: 600, cursor: 'pointer' }} onClick={() => setUseGlobalTime(v => !v)}>
+          <div className="controls">
+            <button className="time-format-toggle" onClick={() => setUseGlobalTime(v => !v)}>
               Switch to: <span id="format-toggle-text">{useGlobalTime ? 'Time from Start' : 'Global Time'}</span>
             </button>
           </div>
           <ColorChart visible={showColorChart} />
         </div>
       </div>
-      <div className={`tab-content${tab === 'notes' ? ' active' : ''}`} style={{ width: '100%', display: tab === 'notes' ? 'flex' : 'none', justifyContent: 'center' }}>
+      <div className={`tab-content${tab === 'notes' ? ' active' : ''}`}>
         <Notes slateInfo={slateInfo} sessionStart={startTime} useGlobalTime={useGlobalTime} timecodeInfo={timecodeInfo} />
       </div>
     </div>

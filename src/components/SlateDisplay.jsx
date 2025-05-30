@@ -2,13 +2,15 @@ import React from 'react';
 
 export default function SlateDisplay({ slateInfo }) {
   return (
-    <div className="slate-display" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', width: '100%' }}>
-      <h2>Prod: {slateInfo.prod || ''}</h2>
-      <h2>Roll: {slateInfo.roll || ''}</h2>
-      <h2>Scene: {slateInfo.scene || ''}</h2>
-      <h2>Take: {slateInfo.take || ''}</h2>
-      <h2>Director: {slateInfo.director || ''}</h2>
-      <h2>Camera: {slateInfo.camera || ''}</h2>
+    <div className="slate-display-card">
+      <h2 className="slate-display-title">Production: {slateInfo.prod || ''}</h2>
+      <div className="slate-display-info">
+        <div><strong>Roll:</strong> {slateInfo.roll || ''}</div>
+        <div><strong>Scene:</strong> {slateInfo.scene || ''}</div>
+        <div><strong>Take:</strong> {slateInfo.take || ''}</div>
+        <div><strong>Director:</strong> {slateInfo.director || ''}</div>
+        <div><strong>Camera:</strong> {slateInfo.camera || ''}</div>
+      </div>
     </div>
   );
 } 
