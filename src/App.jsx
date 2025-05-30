@@ -147,8 +147,61 @@ export default function App() {
   // Button label
   const buttonLabel = takeTimerRunning ? 'STOP TAKE' : 'SYNC';
 
+  // Prevent unwanted zooming on mobile
+  useEffect(() => {
+    const preventZoom = (e) => {
+      if (e.touches.length > 1) {
+        e.preventDefault();
+      }
+    };
+
+    document.addEventListener('touchmove', preventZoom, { passive: false });
+    return () => document.removeEventListener('touchmove', preventZoom);
+  }, []);
+
+  // Add touch event handling for sync/stop
+  const handleTouchStart = useRef(null);
+  const handleTouchEnd = useRef(null);
+
+  useEffect(() => {
+    let touchStartTime = 0;
+    const TOUCH_THRESHOLD = 200; // ms
+
+    handleTouchStart.current = (e) => {
+      touchStartTime = Date.now();
+      // Prevent default only for the sync button to avoid interfering with scrolling
+      if (e.target.classList.contains('sync-button')) {
+        e.preventDefault();
+      }
+    };
+
+    handleTouchEnd.current = (e) => {
+      const touchDuration = Date.now() - touchStartTime;
+      // Only trigger if it's a short touch (not a scroll)
+      if (touchDuration < TOUCH_THRESHOLD && e.target.classList.contains('sync-button')) {
+        e.preventDefault();
+        if (!takeTimerRunning) handleSync();
+        else handleStopTake();
+      }
+    };
+
+    const syncButton = document.querySelector('.sync-button');
+    if (syncButton) {
+      syncButton.addEventListener('touchstart', handleTouchStart.current, { passive: false });
+      syncButton.addEventListener('touchend', handleTouchEnd.current, { passive: false });
+    }
+
+    return () => {
+      if (syncButton) {
+        syncButton.removeEventListener('touchstart', handleTouchStart.current);
+        syncButton.removeEventListener('touchend', handleTouchEnd.current);
+      }
+    };
+  }, [takeTimerRunning]);
+
   return (
     <div className="container">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
       <div className="tabs">
         <button className={`tab${tab === 'timecode' ? ' active' : ''}`} onClick={() => setTab('timecode')}>Timecode Sync</button>
         <button className={`tab${tab === 'notes' ? ' active' : ''}`} onClick={() => setTab('notes')}>Notes</button>
@@ -182,9 +235,6 @@ export default function App() {
           slateInfo={slateInfo}
           sessionStart={takeStartTime || startTime}
           useGlobalTime={useGlobalTime}
-          takeTimerRunning={takeTimerRunning}
-          onSync={handleSync}
-          onStopTake={handleStopTake}
         />
       </div>
     </div>

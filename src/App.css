@@ -24,15 +24,16 @@ body, #root {
 }
 
 .tab {
-  padding: 15px 30px;
+  padding: 12px 20px;
   cursor: pointer;
   background: #2d2d2d;
   border: none;
   color: #ccc;
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 600;
   transition: all 0.3s ease;
   border-top: 3px solid transparent;
+  touch-action: manipulation;
 }
 
 .tab.active {
@@ -84,13 +85,16 @@ body, #root {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   border: none;
   color: white;
-  padding: 20px 40px;
-  font-size: 1.5rem;
+  padding: 15px 30px;
+  font-size: 1.2rem;
   font-weight: bold;
   border-radius: 50px;
   cursor: pointer;
   transition: all 0.3s ease;
   box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
+  width: 100%;
+  max-width: 300px;
+  touch-action: manipulation;
 }
 
 .sync-button:hover {
@@ -173,6 +177,11 @@ body, #root {
   outline: none;
   border-color: #00ff88;
   box-shadow: 0 0 5px rgba(0, 255, 136, 0.3);
+}
+
+.slate-field input:focus {
+  padding: 8px;
+  font-size: 13px;
 }
 
 .color-chart-overlay {
@@ -361,17 +370,275 @@ body, #root {
 @media (max-width: 768px) {
   .timecode {
     font-size: 2.5rem;
+    margin-bottom: 5px;
   }
   
   .sync-button {
-    padding: 15px 30px;
-    font-size: 1.2rem;
+    padding: 15px 25px;
+    font-size: 1.1rem;
+    margin: 10px auto;
   }
   
   .notes-header {
     flex-direction: column;
     gap: 10px;
-    align-items: stretch;
+    padding: 10px;
+  }
+
+  .notes-title {
+    font-size: 1.2rem;
+  }
+
+  .export-btn {
+    width: 100%;
+    max-width: 200px;
+    margin: 0 auto;
+  }
+
+  .note-input-container {
+    padding: 10px;
+  }
+
+  .note-editor {
+    min-height: 100px;
+    font-size: 14px;
+  }
+
+  .note-item {
+    padding: 12px;
+    margin-bottom: 10px;
+  }
+
+  .note-meta-row {
+    flex-direction: column;
+    gap: 5px;
+  }
+
+  .delete-note {
+    padding: 8px 12px;
+    font-size: 12px;
+  }
+
+  .slate-info {
+    padding: 15px;
+    margin: 15px 0;
+  }
+
+  .slate-grid {
+    gap: 10px;
+  }
+
+  .slate-field input {
+    padding: 8px;
+    font-size: 13px;
+  }
+
+  .time-format-toggle {
+    width: 100%;
+    max-width: 200px;
+    margin: 10px auto;
+    padding: 8px 15px;
+  }
+
+  .mobile-help {
+    display: block;
+  }
+
+  .note-item {
+    position: relative;
+    transition: transform 0.2s ease-out;
+    touch-action: pan-y pinch-zoom;
+  }
+
+  .note-item.swipe-to-delete {
+    transform: translateY(-60px);
+    background: rgba(255, 0, 0, 0.1);
+  }
+
+  .note-item.swipe-to-delete::after {
+    content: '↑ Swipe to delete';
+    position: absolute;
+    bottom: -40px;
+    left: 50%;
+    transform: translateX(-50%);
+    color: #ff4444;
+    font-size: 0.8em;
+    white-space: nowrap;
+  }
+
+  .delete-note {
+    display: none;
+  }
+
+  .note-item.swipe-to-delete .delete-note {
+    display: block;
+    position: absolute;
+    bottom: -40px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #ff4444;
+    color: white;
+    border: none;
+    padding: 5px 15px;
+    border-radius: 15px;
+    font-size: 0.9em;
+    opacity: 0;
+    animation: fadeIn 0.2s ease-out forwards;
+  }
+
+  @keyframes fadeIn {
+    to {
+      opacity: 1;
+    }
+  }
+
+  /* Improve touch targets */
+  .note-editor {
+    min-height: 80px;
+    font-size: 16px; /* Prevent zoom on iOS */
+    padding: 12px;
+  }
+
+  .note-input-container {
+    position: sticky;
+    top: 0;
+    background: #1a1a1a;
+    z-index: 10;
+    padding: 10px;
+    border-bottom: 1px solid #333;
+  }
+
+  .notes-list {
+    padding-bottom: 60px; /* Space for mobile keyboard */
+  }
+
+  /* Improve button touch targets */
+  .export-btn, .time-format-toggle, .delete-note {
+    min-height: 44px; /* iOS minimum touch target */
+    padding: 12px 20px;
+  }
+
+  /* Prevent text selection during swipe */
+  .note-item {
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  /* Improve scrolling performance */
+  .notes-list {
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+  }
+}
+
+/* Small mobile devices */
+@media (max-width: 480px) {
+  .tabs {
+    flex-wrap: wrap;
+  }
+
+  .tab {
+    flex: 1 1 50%;
+    text-align: center;
+    padding: 10px 5px;
+    font-size: 13px;
+  }
+
+  .timecode {
+    font-size: 2rem;
+  }
+
+  .sync-status {
+    font-size: 1rem;
+  }
+
+  .slate-info h3 {
+    font-size: 1.1rem;
+  }
+
+  .note-content {
+    font-size: 13px;
+  }
+
+  .color-chart-xrite-info {
+    padding: 10px;
+    font-size: 12px;
+  }
+}
+
+/* Touch device optimizations */
+@media (hover: none) {
+  .tab:hover:not(.active) {
+    background: #2d2d2d;
+    color: #ccc;
+  }
+
+  .sync-button:hover {
+    transform: none;
+    box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
+  }
+
+  .delete-note:hover {
+    background: #ff4444;
+  }
+
+  .export-btn:hover {
+    background: #2d2d2d;
+  }
+
+  /* Add active states for touch devices */
+  .tab:active:not(.active) {
+    background: #3d3d3d;
+    color: #fff;
+  }
+
+  .sync-button:active {
+    transform: scale(0.98);
+  }
+
+  .delete-note:active {
+    background: #ff0000;
+  }
+
+  .export-btn:active {
+    background: #3d3d3d;
+  }
+}
+
+/* Landscape mode optimizations */
+@media (max-height: 500px) and (orientation: landscape) {
+  .timecode {
+    font-size: 2rem;
+    margin-bottom: 5px;
+  }
+
+  .sync-button {
+    padding: 10px 20px;
+    font-size: 1rem;
+  }
+
+  .tab-content {
+    padding: 10px;
+  }
+
+  .slate-info {
+    margin: 10px 0;
+  }
+
+  .notes-header {
+    padding: 5px;
+  }
+
+  .note-input-container {
+    position: relative;
+  }
+
+  .notes-list {
+    padding-bottom: 20px;
+  }
+
+  .note-editor {
+    min-height: 60px;
   }
 }
 
@@ -524,4 +791,12 @@ body, #root {
   text-shadow: 0 0 10px rgba(0,255,136,0.3);
   font-weight: 600;
   letter-spacing: 0.04em;
+}
+
+/* Mobile-specific styles */
+.mobile-help {
+  display: none;
+  font-size: 0.8em;
+  color: #888;
+  margin-top: 5px;
 }
