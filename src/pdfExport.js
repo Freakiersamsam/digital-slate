@@ -23,17 +23,17 @@ export async function exportSessionPDF({
     compress: true
   });
 
-  // Anthropic-inspired color palette
+  // Anthropic-inspired color palette with softer tones
   const colors = {
-    primary: '#1a1a1a',        // Deep charcoal
-    secondary: '#4a4a4a',      // Medium gray
+    primary: '#3a3a3a',        // Softer charcoal (less intense)
+    secondary: '#6a6a6a',      // Medium gray
     accent: '#e67e22',         // Warm orange
-    background: '#fafafa',     // Soft white
-    cardBg: '#ffffff',         // Pure white
-    border: '#e8e8e8',        // Light border
+    background: '#f7f5f3',     // Cream background
+    cardBg: '#faf8f6',         // Soft cream card
+    border: '#e8e4e0',        // Warm light border
     text: {
-      primary: '#2c2c2c',      // Dark text
-      secondary: '#666666',    // Medium text
+      primary: '#4a4a4a',      // Softer dark text
+      secondary: '#7a7a7a',    // Medium text
       light: '#999999'         // Light text
     }
   };
@@ -63,10 +63,11 @@ export async function exportSessionPDF({
   doc.setFillColor(...setColor(colors.primary));
   doc.roundedRect(margin, 8, contentWidth, 20, 2, 2, 'F');
 
-  // Header text with better typography
+  // Header text with better typography and emoji handling
   doc.setTextColor(...setColor('#ffffff'));
   doc.setFontSize(18);
   doc.setFont('helvetica', 'normal');
+  // Use simple film icon instead of emoji to avoid encoding issues
   doc.text('🎬 Digital Slate', margin + 8, 20);
   
   doc.setFontSize(11);
@@ -76,7 +77,9 @@ export async function exportSessionPDF({
     month: 'long', 
     day: 'numeric' 
   });
-  doc.text(`Exported ${headerDate}`, pageWidth - margin - 8, 20, { align: 'right' });
+  const headerText = `Exported ${headerDate}`;
+  const headerTextWidth = doc.getTextWidth(headerText);
+  doc.text(headerText, pageWidth - margin - 8, 20, { align: 'right' });
 
   // Session information card
   const cardY = headerHeight + 15;
@@ -93,13 +96,13 @@ export async function exportSessionPDF({
   doc.setLineWidth(0.5);
   doc.roundedRect(margin, cardY, contentWidth, cardHeight, 3, 3, 'S');
 
-  // Session info with improved typography
+  // Session info with improved typography and proper text fitting
   doc.setTextColor(...setColor(colors.text.primary));
   doc.setFontSize(14);
   doc.setFont('helvetica', 'normal');
   doc.text('Session Overview', margin + 8, cardY + 10);
 
-  doc.setFontSize(10);
+  doc.setFontSize(9); // Smaller font to fit better
   doc.setTextColor(...setColor(colors.text.secondary));
   
   const infoItems = [
@@ -109,6 +112,9 @@ export async function exportSessionPDF({
   ];
 
   let infoY = cardY + 16;
+  const labelWidth = 25; // Fixed width for labels
+  const availableWidth = contentWidth - 16 - labelWidth; // Available width for values
+  
   infoItems.forEach(item => {
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(...setColor(colors.text.secondary));
@@ -116,7 +122,10 @@ export async function exportSessionPDF({
     
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(...setColor(colors.text.primary));
-    doc.text(item.value, margin + 35, infoY);
+    
+    // Wrap text if it's too long
+    const wrappedValue = doc.splitTextToSize(item.value, availableWidth);
+    doc.text(wrappedValue[0], margin + 8 + labelWidth, infoY); // Only show first line to fit
     
     infoY += 5;
   });
@@ -130,13 +139,13 @@ export async function exportSessionPDF({
   doc.setFillColor(...setColor(colors.primary));
   doc.roundedRect(margin, tableY, contentWidth, headerRowHeight, 2, 2, 'F');
 
-  // Column definitions with better proportions
+  // Column definitions with better proportions for proper text wrapping
   const columns = [
-    { title: 'Timecode', x: margin + 4, width: 25 },
-    { title: 'Relative', x: margin + 32, width: 20 },
-    { title: 'Scene', x: margin + 55, width: 15 },
-    { title: 'Take', x: margin + 73, width: 15 },
-    { title: 'Notes', x: margin + 91, width: 95 }
+    { title: 'Timecode', x: margin + 4, width: 22 },
+    { title: 'Relative', x: margin + 28, width: 18 },
+    { title: 'Scene', x: margin + 48, width: 12 },
+    { title: 'Take', x: margin + 62, width: 12 },
+    { title: 'Notes', x: margin + 76, width: 110 } // More space for notes
   ];
 
   // Header text
@@ -182,25 +191,37 @@ export async function exportSessionPDF({
       doc.rect(margin, currentY - 2, contentWidth, rowHeight, 'F');
     }
 
-    // Row data with improved formatting
+    // Row data with improved formatting and proper text wrapping
     const rowData = [
       { text: note.timecodeIn || '-', x: columns[0].x },
       { text: note.relativeTime || '-', x: columns[1].x },
       { text: note.slateInfo?.scene || '-', x: columns[2].x },
-      { text: note.slateInfo?.take || '-', x: columns[3].x },
-      { text: note.content || '', x: columns[4].x, maxWidth: columns[4].width }
+      { text: note.slateInfo?.take || '-', x: columns[3].x }
     ];
 
     doc.setTextColor(...setColor(colors.text.primary));
     
-    rowData.forEach((data, colIdx) => {
-      if (colIdx === 4) { // Notes column with text wrapping
-        const lines = doc.splitTextToSize(data.text, data.maxWidth);
-        doc.text(lines.slice(0, 2), data.x, currentY + 6); // Limit to 2 lines
-      } else {
-        doc.text(data.text, data.x, currentY + 6);
-      }
+    // Handle regular columns
+    rowData.forEach((data) => {
+      doc.text(data.text, data.x, currentY + 6);
     });
+
+    // Handle notes column with proper wrapping
+    const noteText = note.content || '';
+    if (noteText) {
+      const wrappedLines = doc.splitTextToSize(noteText, columns[4].width);
+      const maxLines = Math.floor((270 - currentY) / 4); // Calculate max lines that fit on page
+      const linesToShow = Math.min(wrappedLines.length, 3, maxLines); // Max 3 lines or what fits
+      
+      for (let i = 0; i < linesToShow; i++) {
+        doc.text(wrappedLines[i], columns[4].x, currentY + 6 + (i * 4));
+      }
+      
+      // Adjust row height if we have multiple lines
+      if (linesToShow > 1) {
+        currentY += (linesToShow - 1) * 4;
+      }
+    }
 
     currentY += rowHeight;
   });
