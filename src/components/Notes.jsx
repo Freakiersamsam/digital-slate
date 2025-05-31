@@ -196,6 +196,7 @@ const Notes = forwardRef(function Notes({ slateInfo, sessionStart, useGlobalTime
 
   // Export notes as PDF (dynamic import for code splitting)
   async function exportNotesPDF() {
+    console.log('[DEBUG] exportNotesPDF called', { notes, slateInfo, sessionStart });
     if (notes.length === 0) {
       alert('No notes to export!');
       return;
