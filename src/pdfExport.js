@@ -2,7 +2,7 @@
 // Inspired by Anthropic's clean, modern design aesthetic
 // Usage: import and call exportSessionPDF({ notes, slateInfo, sessionStart, filename })
 
-import notoEmojiFontBase64 from '../NotoEmoji-Regular.ttf.base64';
+import notoEmojiFontBase64 from '../NotoEmoji-Regular.ttf.base64?raw';
 
 export async function exportSessionPDF({ 
   notes, 
