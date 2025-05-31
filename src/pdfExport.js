@@ -2,8 +2,6 @@
 // Inspired by Anthropic's clean, modern design aesthetic
 // Usage: import and call exportSessionPDF({ notes, slateInfo, sessionStart, filename })
 
-import notoEmojiFontBase64 from '../NotoEmoji-Regular.ttf.base64?raw';
-
 export async function exportSessionPDF({ 
   notes, 
   slateInfo, 
@@ -83,25 +81,6 @@ export async function exportSessionPDF({
       return segments;
     }
 
-    // --- Emoji font embedding logic ---
-    // Noto Emoji font (monochrome, base64-encoded)
-    // Download from https://github.com/googlefonts/noto-emoji/blob/main/fonts/NotoEmoji-Regular.ttf
-    // Convert to base64: base64 -i NotoEmoji-Regular.ttf | pbcopy
-    // Paste the full base64 string below (replace <BASE64_STRING_HERE>)
-    const notoEmojiFont = notoEmojiFontBase64;
-
-    // Register Noto Emoji font if available
-    if (notoEmojiFont && notoEmojiFont.trim().length > 0 && notoEmojiFont !== '<BASE64_STRING_HERE>') {
-      doc.addFileToVFS('NotoEmoji-Regular.ttf', notoEmojiFont);
-      doc.addFont('NotoEmoji-Regular.ttf', 'NotoEmoji', 'normal');
-    }
-
-    // Simple header with emoji font if available
-    if (notoEmojiFont && notoEmojiFont.trim().length > 0 && notoEmojiFont !== '<BASE64_STRING_HERE>') {
-      doc.setFont('NotoEmoji', 'normal');
-    } else {
-      doc.setFont('helvetica', 'bold');
-    }
     doc.setTextColor(...setColor(colors.primary));
     doc.setFontSize(20);
     doc.text('🎬 Digital Slate', margin, 18);
@@ -305,11 +284,7 @@ export async function exportSessionPDF({
           // Split line into emoji/non-emoji segments
           const segments = splitTextByEmoji(line);
           segments.forEach(seg => {
-            if (seg.isEmoji && notoEmojiFont && notoEmojiFont.trim().length > 0 && notoEmojiFont !== '<BASE64_STRING_HERE>') {
-              doc.setFont('NotoEmoji', 'normal');
-            } else {
-              doc.setFont('helvetica', 'normal');
-            }
+            doc.setFont('helvetica', 'normal');
             doc.text(seg.text, x, currentY + 6 + (i * 4), { baseline: 'top' });
             x += doc.getTextWidth(seg.text);
           });

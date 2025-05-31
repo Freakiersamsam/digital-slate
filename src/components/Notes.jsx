@@ -201,8 +201,13 @@ const Notes = forwardRef(function Notes({ slateInfo, sessionStart, useGlobalTime
       alert('No notes to export!');
       return;
     }
-    // Use the new modern PDF export utility
-    const { exportSessionPDF } = await import('../pdfExport.js');
+    // Use the emoji PDF export utility for test builds
+    let exportSessionPDF;
+    if (import.meta.env.MODE === 'test') {
+      ({ exportSessionPDFWithEmoji: exportSessionPDF } = await import('../pdfExportWithEmoji.js'));
+    } else {
+      ({ exportSessionPDF } = await import('../pdfExport.js'));
+    }
     const sessionDate = new Date().toISOString().slice(0, 10);
     await exportSessionPDF({
       notes,

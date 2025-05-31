@@ -11,7 +11,9 @@
     "lint": "eslint . --ext js,jsx --report-unused-disable-directives --max-warnings 0",
     "predeploy": "npm run build",
     "deploy": "gh-pages -d dist",
-    "server": "node server/index.js"
+    "server": "node server/index.js",
+    "dev:test": "MODE=test vite",
+    "build:test": "MODE=test vite build"
   },
   "dependencies": {
     "cors": "^2.8.5",
