@@ -290,17 +290,28 @@ export async function exportSessionPDF({
       doc.text(data.text, data.x, currentY + 6);
     });
 
-    // Handle notes column with proper wrapping
+    // Handle notes column with proper wrapping and emoji font
     const noteText = note.content || '';
     if (noteText) {
+      // Split into lines that fit the column width
       const wrappedLines = doc.splitTextToSize(noteText, columns[4].width);
       const maxLines = Math.floor((270 - currentY) / 4); // Calculate max lines that fit on page
       const linesToShow = Math.min(wrappedLines.length, 3, maxLines); // Max 3 lines or what fits
-      
       for (let i = 0; i < linesToShow; i++) {
-        doc.text(wrappedLines[i], columns[4].x, currentY + 6 + (i * 4));
+        const line = wrappedLines[i];
+        let x = columns[4].x;
+        // Split line into emoji/non-emoji segments
+        const segments = splitTextByEmoji(line);
+        segments.forEach(seg => {
+          if (seg.isEmoji && notoEmojiFont && notoEmojiFont.trim().length > 0 && notoEmojiFont !== '<BASE64_STRING_HERE>') {
+            doc.setFont('NotoEmoji', 'normal');
+          } else {
+            doc.setFont('helvetica', 'normal');
+          }
+          doc.text(seg.text, x, currentY + 6 + (i * 4), { baseline: 'top' });
+          x += doc.getTextWidth(seg.text);
+        });
       }
-      
       // Adjust row height if we have multiple lines
       if (linesToShow > 1) {
         currentY += (linesToShow - 1) * 4;
