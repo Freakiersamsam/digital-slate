@@ -1,7 +1,3 @@
-// Enhanced PDF export utility for Digital Slate
-// Inspired by Anthropic's clean, modern design aesthetic
-// Usage: import and call exportSessionPDF({ notes, slateInfo, sessionStart, filename })
-
 export async function exportSessionPDF({ 
   notes, 
   slateInfo, 
@@ -17,7 +13,6 @@ export async function exportSessionPDF({
 
     const { jsPDF } = await import('jspdf');
     
-    // Create document with optimized settings
     const doc = new jsPDF({ 
       orientation: 'portrait', 
       unit: 'mm', 
@@ -25,22 +20,20 @@ export async function exportSessionPDF({
       compress: true
     });
 
-    // Anthropic-inspired color palette with softer tones
     const colors = {
-      primary: '#3a3a3a',        // Softer charcoal (less intense)
-      secondary: '#6a6a6a',      // Medium gray
-      accent: '#e67e22',         // Warm orange
-      background: '#f7f5f3',     // Cream background
-      cardBg: '#faf8f6',         // Soft cream card
-      border: '#e8e4e0',        // Warm light border
+      primary: '#3a3a3a',
+      secondary: '#6a6a6a',
+      accent: '#e67e22',
+      background: '#f7f5f3',
+      cardBg: '#faf8f6',
+      border: '#e8e4e0',
       text: {
-        primary: '#4a4a4a',      // Softer dark text
-        secondary: '#7a7a7a',    // Medium text
-        light: '#999999'         // Light text
+        primary: '#4a4a4a',
+        secondary: '#7a7a7a',
+        light: '#999999'
       }
     };
 
-    // Helper function to set colors
     const setColor = (colorCode) => {
       const hex = colorCode.replace('#', '');
       const r = parseInt(hex.substr(0, 2), 16);
@@ -49,19 +42,207 @@ export async function exportSessionPDF({
       return [r, g, b];
     };
 
-    // Page margins and layout
+    const truncateText = (text, maxWidth, addEllipsis = true) => {
+      if (!text) return '';
+      let truncated = text.toString();
+      if (doc.getTextWidth(truncated) <= maxWidth) return truncated;
+      
+      const ellipsis = addEllipsis ? '...' : '';
+      while (doc.getTextWidth(truncated + ellipsis) > maxWidth && truncated.length > 0) {
+        truncated = truncated.slice(0, -1);
+      }
+      return truncated + ellipsis;
+    };
+
+    const wrapTextInColumn = (text, maxWidth) => {
+      if (!text) return [''];
+      const textStr = text.toString();
+      const manualLines = textStr.split(/\r?\n/);
+      let allLines = [];
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8);
+
+      manualLines.forEach(line => {
+        if (line.trim() === '') {
+          allLines.push('');
+          return;
+        }
+        let currentLine = '';
+        let charIndex = 0;
+        while (charIndex < line.length) {
+          // Try adding one character at a time
+          let testLine = currentLine + line[charIndex];
+          if (doc.getTextWidth(testLine) <= maxWidth) {
+            currentLine = testLine;
+            charIndex++;
+          } else {
+            if (currentLine.trim() !== '') {
+              // Push the current line before breaking
+              allLines.push(currentLine.trimEnd());
+              currentLine = '';
+            } else {
+              // Handle case where a single character sequence is too long
+              let subWord = '';
+              while (charIndex < line.length && doc.getTextWidth(subWord + line[charIndex] + '-') <= maxWidth) {
+                subWord += line[charIndex];
+                charIndex++;
+              }
+              if (subWord.length > 0) {
+                allLines.push(subWord + (charIndex < line.length ? '-' : ''));
+                subWord = '';
+              } else {
+                // If even one char doesn't fit, push it to avoid infinite loop
+                allLines.push(line[charIndex]);
+                charIndex++;
+              }
+            }
+          }
+        }
+        if (currentLine.trim() !== '') {
+          allLines.push(currentLine.trimEnd());
+        }
+      });
+      console.log('[DEBUG] wrapTextInColumn output', { input: textStr, lines: allLines });
+      return allLines.length > 0 ? allLines : [''];
+    };
+
+    // --- New robust word-wrapping and hyphenation for notes column ---
+    function wrapTextWithHyphenation(doc, text, maxWidth) {
+      if (!text) return [''];
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8);
+      const lines = [];
+      const paragraphs = text.toString().split(/\r?\n/);
+      for (const para of paragraphs) {
+        if (para.trim() === '') {
+          lines.push('');
+          continue;
+        }
+        let words = para.split(/(\s+)/); // keep spaces
+        let currentLine = '';
+        for (let i = 0; i < words.length; i++) {
+          let word = words[i];
+          // If whitespace, just add
+          if (/^\s+$/.test(word)) {
+            currentLine += word;
+            continue;
+          }
+          // If word fits in current line
+          if (doc.getTextWidth(currentLine + word) <= maxWidth) {
+            currentLine += word;
+          } else {
+            // If word itself is too long, break it with hyphens
+            if (doc.getTextWidth(word) > maxWidth) {
+              // Push current line if not empty
+              if (currentLine.trim() !== '') {
+                lines.push(currentLine.trimEnd());
+                currentLine = '';
+              }
+              let subWord = '';
+              for (let c = 0; c < word.length; c++) {
+                let testSub = subWord + word[c];
+                if (doc.getTextWidth(testSub + '-') > maxWidth) {
+                  if (subWord.length > 0) {
+                    lines.push(subWord + '-');
+                    subWord = word[c];
+                  } else {
+                    // Single char too wide, just add it
+                    lines.push(word[c]);
+                    subWord = '';
+                  }
+                } else {
+                  subWord = testSub;
+                }
+              }
+              if (subWord.length > 0) {
+                currentLine = subWord;
+              }
+            } else {
+              // Word fits on its own, but not with current line
+              if (currentLine.trim() !== '') {
+                lines.push(currentLine.trimEnd());
+              }
+              currentLine = word;
+            }
+          }
+        }
+        if (currentLine.trim() !== '') {
+          lines.push(currentLine.trimEnd());
+        }
+      }
+      return lines.length > 0 ? lines : [''];
+    }
+
+    // --- Completely new robust word-wrapping and hyphenation for notes column ---
+    function wrapTextNotesStrict(doc, text, maxWidth) {
+      if (!text) return [''];
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8);
+      const lines = [];
+      const paragraphs = text.toString().split(/\r?\n/);
+      for (const para of paragraphs) {
+        if (para.trim() === '') {
+          lines.push('');
+          continue;
+        }
+        let tokens = para.match(/\S+|\s+/g) || [];
+        let currentLine = '';
+        for (let i = 0; i < tokens.length; i++) {
+          let token = tokens[i];
+          // If token fits, add it
+          if (doc.getTextWidth(currentLine + token) <= maxWidth) {
+            currentLine += token;
+          } else {
+            // If token is a long word, break it with hyphens
+            if (!/^\s+$/.test(token) && doc.getTextWidth(token) > maxWidth) {
+              // Push current line if not empty
+              if (currentLine.trim() !== '') {
+                lines.push(currentLine.trimEnd());
+                currentLine = '';
+              }
+              let subWord = '';
+              for (let c = 0; c < token.length; c++) {
+                let testSub = subWord + token[c];
+                if (doc.getTextWidth(testSub + '-') > maxWidth) {
+                  if (subWord.length > 0) {
+                    lines.push(subWord + '-');
+                    subWord = token[c];
+                  } else {
+                    // Single char too wide, just add it
+                    lines.push(token[c]);
+                    subWord = '';
+                  }
+                } else {
+                  subWord = testSub;
+                }
+              }
+              if (subWord.length > 0) {
+                currentLine = subWord;
+              }
+            } else {
+              // Token is whitespace or fits on its own, but not with current line
+              if (currentLine.trim() !== '') {
+                lines.push(currentLine.trimEnd());
+              }
+              currentLine = token;
+            }
+          }
+        }
+        if (currentLine.trim() !== '') {
+          lines.push(currentLine.trimEnd());
+        }
+      }
+      return lines.length > 0 ? lines : [''];
+    }
+
     const margin = 20;
     const pageWidth = 210;
     const contentWidth = pageWidth - (margin * 2);
 
-    // Modern header without beige bar - clean white background
     const headerHeight = 30;
-    
-    // Clean white background for entire header area
     doc.setFillColor(255, 255, 255);
     doc.rect(0, 0, pageWidth, headerHeight, 'F');
     
-    // Remove emoji from header, just use text
     doc.setTextColor(...setColor(colors.primary));
     doc.setFontSize(20);
     doc.setFont('helvetica', 'bold');
@@ -78,35 +259,30 @@ export async function exportSessionPDF({
     const headerText = `Exported ${headerDate}`;
     doc.text(headerText, pageWidth - margin, 18, { align: 'right' });
 
-    // Session information card with more comprehensive info
     const cardY = headerHeight + 10;
-    const cardHeight = 45; // Increased height for more info
+    const cardHeight = 45;
     
-    // Card background with subtle shadow effect
     doc.setFillColor(...setColor(colors.border));
-    doc.roundedRect(margin + 1, cardY + 1, contentWidth, cardHeight, 3, 3, 'F'); // Shadow
+    doc.roundedRect(margin + 1, cardY + 1, contentWidth, cardHeight, 3, 3, 'F');
     doc.setFillColor(...setColor(colors.cardBg));
     doc.roundedRect(margin, cardY, contentWidth, cardHeight, 3, 3, 'F');
     
-    // Card border
     doc.setDrawColor(...setColor(colors.border));
     doc.setLineWidth(0.5);
     doc.roundedRect(margin, cardY, contentWidth, cardHeight, 3, 3, 'S');
 
-    // Session info with improved typography and proper text fitting
     doc.setTextColor(...setColor(colors.text.primary));
     doc.setFontSize(12);
     doc.setFont('helvetica', 'bold');
     doc.text('Session Overview', margin + 8, cardY + 10);
 
-    doc.setFontSize(8); // Smaller font to fit more info
+    doc.setFontSize(8);
     doc.setFont('helvetica', 'normal');
     
-    // Two-column layout for session info
     const leftColX = margin + 8;
     const rightColX = margin + (contentWidth / 2) + 8;
     const labelWidth = 22;
-    const maxValueWidth = (contentWidth / 2) - 30; // Max width for values
+    const maxValueWidth = (contentWidth / 2) - 30;
     
     const leftColumnItems = [
       { label: 'Production:', value: slateInfo?.prod || 'Not specified' },
@@ -125,7 +301,6 @@ export async function exportSessionPDF({
     let leftY = cardY + 18;
     let rightY = cardY + 18;
     
-    // Left column
     leftColumnItems.forEach(item => {
       doc.setFont('helvetica', 'bold');
       doc.setTextColor(...setColor(colors.text.secondary));
@@ -133,21 +308,11 @@ export async function exportSessionPDF({
       
       doc.setFont('helvetica', 'normal');
       doc.setTextColor(...setColor(colors.text.primary));
-      
-      // Truncate text if too long
-      let displayValue = item.value;
-      if (doc.getTextWidth(displayValue) > maxValueWidth) {
-        while (doc.getTextWidth(displayValue + '...') > maxValueWidth && displayValue.length > 0) {
-          displayValue = displayValue.slice(0, -1);
-        }
-        displayValue += '...';
-      }
-      
+      const displayValue = truncateText(item.value, maxValueWidth);
       doc.text(displayValue, leftColX + labelWidth, leftY);
       leftY += 7;
     });
     
-    // Right column
     rightColumnItems.forEach(item => {
       doc.setFont('helvetica', 'bold');
       doc.setTextColor(...setColor(colors.text.secondary));
@@ -155,39 +320,25 @@ export async function exportSessionPDF({
       
       doc.setFont('helvetica', 'normal');
       doc.setTextColor(...setColor(colors.text.primary));
-      
-      // Truncate text if too long
-      let displayValue = item.value;
-      if (doc.getTextWidth(displayValue) > maxValueWidth) {
-        while (doc.getTextWidth(displayValue + '...') > maxValueWidth && displayValue.length > 0) {
-          displayValue = displayValue.slice(0, -1);
-        }
-        displayValue += '...';
-      }
-      
+      const displayValue = truncateText(item.value, maxValueWidth);
       doc.text(displayValue, rightColX + labelWidth, rightY);
       rightY += 7;
     });
 
-    // Notes table header
     const tableY = cardY + cardHeight + 20;
-    const rowHeight = 12;
     const headerRowHeight = 14;
     
-    // Table header background
     doc.setFillColor(...setColor(colors.primary));
     doc.roundedRect(margin, tableY, contentWidth, headerRowHeight, 2, 2, 'F');
 
-    // Column definitions with better proportions and center alignment for Scene
     const columns = [
-      { title: 'Timecode', x: margin + 4, width: 22, align: 'left' },
-      { title: 'Relative', x: margin + 28, width: 18, align: 'left' },
-      { title: 'Scene', x: margin + 48, width: 12, align: 'center' },
-      { title: 'Take', x: margin + 62, width: 12, align: 'left' },
-      { title: 'Notes', x: margin + 76, width: 110, align: 'left' }
+      { title: 'Timecode', x: margin + 2, width: 28, align: 'left' },
+      { title: 'Relative', x: margin + 32, width: 24, align: 'left' },
+      { title: 'Scene', x: margin + 58, width: 16, align: 'center' },
+      { title: 'Take', x: margin + 76, width: 16, align: 'left' },
+      { title: 'Notes', x: margin + 94, width: 94, align: 'left' }
     ];
 
-    // Header text with center alignment for Scene column
     doc.setTextColor(255, 255, 255);
     doc.setFontSize(10);
     doc.setFont('helvetica', 'bold');
@@ -196,117 +347,101 @@ export async function exportSessionPDF({
       if (col.align === 'center') {
         doc.text(col.title, col.x + (col.width / 2), tableY + 9, { align: 'center' });
       } else {
-        doc.text(col.title, col.x, tableY + 9);
+        doc.text(col.title, col.x + 2, tableY + 9);
       }
     });
 
-    // Table rows with improved styling
     let currentY = tableY + headerRowHeight + 2;
     doc.setFont('helvetica', 'normal');
-    doc.setFontSize(9);
+    doc.setFontSize(8);
 
     notes.forEach((note, idx) => {
-      // Check for page break
-      if (currentY > 270) {
+      let relativeTime = '';
+      if (note.slateInfo && note.slateInfo.takeStart != null && note.timecodeIn != null) {
+        let noteTime = typeof note.timecodeIn === 'number' ? note.timecodeIn : parseFloat(note.timecodeIn);
+        let takeStart = typeof note.slateInfo.takeStart === 'number' ? note.slateInfo.takeStart : parseFloat(note.slateInfo.takeStart);
+        if (!isNaN(noteTime) && !isNaN(takeStart) && noteTime >= takeStart) {
+          let relSec = noteTime - takeStart;
+          let min = Math.floor(relSec / 60);
+          let sec = (relSec % 60).toFixed(3);
+          relativeTime = `${min}:${sec.padStart(6, '0')}`;
+        }
+      }
+
+      const timecodeText = truncateText(note.timecodeIn || '-', columns[0].width - 4);
+      const relativeTimeText = truncateText(relativeTime, columns[1].width - 4);
+      const sceneText = truncateText(note.slateInfo?.scene || '-', columns[2].width - 4);
+      const takeText = truncateText(note.slateInfo?.take || '-', columns[3].width - 4);
+      
+      // Use new strict wrapping for notes
+      const notesLines = wrapTextNotesStrict(doc, note.content || '', columns[4].width - 8);
+      const lineHeight = 4;
+      const minRowHeight = 10;
+      const dynamicRowHeight = Math.max(minRowHeight, notesLines.length * lineHeight + 6);
+
+      const pageBottomLimit = 260;
+      if (currentY + dynamicRowHeight > pageBottomLimit) {
         doc.addPage();
         currentY = 30;
-        
-        // Repeat header on new page with center alignment
         doc.setFillColor(...setColor(colors.primary));
         doc.roundedRect(margin, currentY - headerRowHeight, contentWidth, headerRowHeight, 2, 2, 'F');
-        
         doc.setTextColor(255, 255, 255);
         doc.setFontSize(10);
         doc.setFont('helvetica', 'bold');
-        
         columns.forEach(col => {
           if (col.align === 'center') {
             doc.text(col.title, col.x + (col.width / 2), currentY - 5, { align: 'center' });
           } else {
-            doc.text(col.title, col.x, currentY - 5);
+            doc.text(col.title, col.x + 2, currentY - 5);
           }
         });
-        
         currentY += 2;
         doc.setFont('helvetica', 'normal');
-        doc.setFontSize(9);
+        doc.setFontSize(8);
       }
 
-      // Alternating row colors with subtle styling
       if (idx % 2 === 0) {
         doc.setFillColor(...setColor(colors.background));
-        doc.rect(margin, currentY - 2, contentWidth, rowHeight, 'F');
+        doc.rect(margin, currentY - 1, contentWidth, dynamicRowHeight, 'F');
       }
-
-      // Row data with improved formatting and proper text wrapping
-      const rowData = [
-        { text: note.timecodeIn || '-', x: columns[0].x },
-        { text: note.relativeTime || '-', x: columns[1].x },
-        { text: note.slateInfo?.scene || '-', x: columns[2].x },
-        { text: note.slateInfo?.take || '-', x: columns[3].x }
-      ];
 
       doc.setTextColor(...setColor(colors.text.primary));
-      
-      // Handle regular columns
-      rowData.forEach((data) => {
-        doc.text(data.text, data.x, currentY + 6);
-      });
-
-      // Handle notes column with proper wrapping and emoji font
-      const noteText = note.content || '';
-      if (noteText) {
-        // Split into lines that fit the column width
-        const wrappedLines = doc.splitTextToSize(noteText, columns[4].width);
-        const maxLines = Math.floor((270 - currentY) / 4); // Calculate max lines that fit on page
-        const linesToShow = Math.min(wrappedLines.length, 3, maxLines); // Max 3 lines or what fits
-        for (let i = 0; i < linesToShow; i++) {
-          const line = wrappedLines[i];
-          let x = columns[4].x;
-          // Split line into emoji/non-emoji segments
-          const segments = splitTextByEmoji(line);
-          segments.forEach(seg => {
-            doc.setFont('helvetica', 'normal');
-            doc.text(seg.text, x, currentY + 6 + (i * 4), { baseline: 'top' });
-            x += doc.getTextWidth(seg.text);
-          });
-        }
-        // Adjust row height if we have multiple lines
-        if (linesToShow > 1) {
-          currentY += (linesToShow - 1) * 4;
-        }
+      const centerY = currentY + (dynamicRowHeight / 2) + 1;
+      doc.text(timecodeText, columns[0].x + 2, centerY);
+      doc.text(relativeTimeText, columns[1].x + 2, centerY);
+      if (sceneText && sceneText !== '-') {
+        doc.text(sceneText, columns[2].x + (columns[2].width / 2), centerY, { align: 'center' });
+      } else {
+        doc.text('-', columns[2].x + (columns[2].width / 2), centerY, { align: 'center' });
       }
-
-      currentY += rowHeight;
+      doc.text(takeText, columns[3].x + 2, centerY);
+      
+      if (notesLines.length > 0) {
+        const notesStartY = currentY + ((dynamicRowHeight - (notesLines.length * lineHeight)) / 2) + 3;
+        notesLines.forEach((line, lineIdx) => {
+          if (line && line.toString().trim()) {
+            doc.text(line, columns[4].x + 3, notesStartY + (lineIdx * lineHeight));
+          }
+        });
+      }
+      currentY += dynamicRowHeight;
     });
 
-    // Restore font for rest of document
-    doc.setFont('helvetica', 'normal');
-
-    // Enhanced footer
     const pageCount = doc.internal.getNumberOfPages();
     
     for (let i = 1; i <= pageCount; i++) {
       doc.setPage(i);
-      
-      // Footer line
       doc.setDrawColor(...setColor(colors.border));
       doc.setLineWidth(0.5);
       doc.line(margin, 285, pageWidth - margin, 285);
       
-      // Footer text
       doc.setFontSize(8);
       doc.setTextColor(...setColor(colors.text.light));
       doc.setFont('helvetica', 'normal');
-      
-      // Left side - generation info
       doc.text('Generated by Digital Slate', margin, 290);
-      
-      // Right side - page numbers
       doc.text(`Page ${i} of ${pageCount}`, pageWidth - margin, 290, { align: 'right' });
     }
 
-    // Save with the exact same behavior as original
     doc.save(filename);
     console.log('[DEBUG] PDF save triggered', filename);
   } catch (err) {
