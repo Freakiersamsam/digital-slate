@@ -1,3 +1,5 @@
+import LZString from 'lz-string';
+
 // localStorage.js
 // Utility for local data storage and export functionality
 
@@ -12,21 +14,30 @@ function validateSessionData(data) {
   return true;
 }
 
+// --- Compression helpers ---
+function compressData(data) {
+  return LZString.compressToUTF16(JSON.stringify(data));
+}
+
+function decompressData(compressed) {
+  if (!compressed) return null;
+  try {
+    return JSON.parse(LZString.decompressFromUTF16(compressed));
+  } catch (e) {
+    console.error('Decompression error:', e);
+    return null;
+  }
+}
+
 // Get all data from localStorage
 export function loadAllData() {
   const raw = localStorage.getItem(STORAGE_KEY);
   if (!raw) return { version: VERSION, sessions: {} };
-  try {
-    const data = JSON.parse(raw);
-    // Ensure we have the expected structure
-    if (!data.version || !data.sessions) {
-      return { version: VERSION, sessions: {} };
-    }
-    return data;
-  } catch (e) {
-    console.error('Error loading data:', e);
+  const data = decompressData(raw);
+  if (!data || !data.version || !data.sessions) {
     return { version: VERSION, sessions: {} };
   }
+  return data;
 }
 
 // Save all data to localStorage
@@ -40,7 +51,7 @@ export function saveAllData(data) {
     lastModified: new Date().toISOString(),
     sessions: data.sessions || {}
   };
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(dataToSave));
+  localStorage.setItem(STORAGE_KEY, compressData(dataToSave));
 }
 
 // Save a single session

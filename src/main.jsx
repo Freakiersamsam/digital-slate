@@ -16,3 +16,17 @@ createRoot(document.getElementById('root')).render(
     </ThemeProvider>
   </StrictMode>,
 )
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/service-worker.js')
+      .then(reg => {
+        // Registration successful
+        // console.log('Service Worker registered:', reg);
+      })
+      .catch(err => {
+        // Registration failed
+        // console.error('Service Worker registration failed:', err);
+      });
+  });
+}

@@ -67,33 +67,34 @@ export default function App() {
   // Start take (SYNC)
   function handleSync() {
     try {
+      // Record the exact time the sync button is clicked
+      const syncClickTime = Date.now();
       playBeep();
       setShowColorChart(true);
       setSyncStatus('TAKE RUNNING');
       setIsPaused(true);
-      // Record the exact time the sync button is clicked
-      const syncClickTime = Date.now();
+      // Set timer and note immediately with the snapped time
+      setTakeTimerRunning(true);
+      setTakeStartTime(syncClickTime);
+      setTakeEndTime(null);
+      setTakeDuration(0);
+      // Add note for take start
+      if (notesRef.current && notesRef.current.addNoteExternal) {
+        const scene = slateInfo.scene ? `Scene ${slateInfo.scene}` : '';
+        const take = slateInfo.take ? `Take ${slateInfo.take}` : '';
+        const label = [scene, take].filter(Boolean).join(' ');
+        notesRef.current.addNoteExternal(
+          `🎬 Take started at ${formatTime(syncClickTime, true)}${label ? ` (${label})` : ''}`,
+          syncClickTime,
+          { ...slateInfo }
+        );
+      }
+      // Show color chart for 3s, then hide and unpause
       setTimeout(() => {
         setShowColorChart(false);
         setTimeout(() => {
           setIsPaused(false);
           setSyncStatus('TAKE RUNNING');
-          // Use the original syncClickTime for take start
-          setTakeTimerRunning(true);
-          setTakeStartTime(syncClickTime);
-          setTakeEndTime(null);
-          setTakeDuration(0);
-          // Add note for take start
-          if (notesRef.current && notesRef.current.addNoteExternal) {
-            const scene = slateInfo.scene ? `Scene ${slateInfo.scene}` : '';
-            const take = slateInfo.take ? `Take ${slateInfo.take}` : '';
-            const label = [scene, take].filter(Boolean).join(' ');
-            notesRef.current.addNoteExternal(
-              `🎬 Take started at ${formatTime(syncClickTime, true)}${label ? ` (${label})` : ''}`,
-              syncClickTime,
-              { ...slateInfo }
-            );
-          }
         }, 2000);
       }, 3000);
     } catch (err) {
