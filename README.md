@@ -23,7 +23,7 @@ A modern web app for digital film slating, camera synchronization, and note-taki
 #### Quick Wins (1-2 days each)
 - [x] Add favicon and app icon
 - [x] Implement dark/light mode toggle
-- [x] Improve landscape mode support for mobile
+- [ ] Improve landscape mode support for mobile
 - [x] Add basic error handling and user feedback
 - [x] Enhance mobile keyboard handling
 - [x] Optimize basic localStorage usage

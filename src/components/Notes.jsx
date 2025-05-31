@@ -200,30 +200,15 @@ const Notes = forwardRef(function Notes({ slateInfo, sessionStart, useGlobalTime
       alert('No notes to export!');
       return;
     }
-    const { jsPDF } = await import('jspdf');
-    const doc = new jsPDF();
-    doc.setFontSize(16);
-    doc.text('Digital Slate - Session Notes', 10, 15);
-    doc.setFontSize(12);
-    doc.text(`Production: ${slateInfo.prod || ''}`, 10, 25);
-    doc.text(`Session Start: ${new Date(sessionStart).toLocaleString()}`, 10, 32);
-    let y = 42;
-    notes.forEach((note, i) => {
-      if (y > 270) {
-        doc.addPage();
-        y = 20;
-      }
-      doc.text(
-        `[${note.timecodeIn} | +${note.relativeTime}]${note.slateInfo && (note.slateInfo.scene || note.slateInfo.take) ? ` (Scene: ${note.slateInfo.scene || ''} Take: ${note.slateInfo.take || ''})` : ''}`,
-        10,
-        y
-      );
-      y += 7;
-      doc.text(note.content, 14, y);
-      y += 10;
-    });
+    // Use the new modern PDF export utility
+    const { exportSessionPDF } = await import('../pdfExport.js');
     const sessionDate = new Date().toISOString().slice(0, 10);
-    doc.save(`video-shoot-notes-${sessionDate}.pdf`);
+    await exportSessionPDF({
+      notes,
+      slateInfo,
+      sessionStart,
+      filename: `video-shoot-notes-${sessionDate}.pdf`
+    });
   }
 
   // Add touch handling for note deletion
