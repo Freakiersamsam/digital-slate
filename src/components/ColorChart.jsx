@@ -1,4 +1,5 @@
 import React from 'react';
+import { QRCodeDisplay } from './QRCodeDisplay';
 
 // Helper to get non-empty slate info fields in a specific order
 function getSlateInfoPairs(slateInfo) {
@@ -17,7 +18,7 @@ function getSlateInfoPairs(slateInfo) {
     .filter(Boolean);
 }
 
-export default function ColorChart({ visible, pausedTimecode, slateInfo }) {
+export default function ColorChart({ visible, pausedTimecode, slateInfo, sessionId, joinUrl }) {
   if (!visible) return null;
   // X-Rite ColorChecker Classic 24-patch chart colors (6x4)
   const xriteColors = [
@@ -48,6 +49,28 @@ export default function ColorChart({ visible, pausedTimecode, slateInfo }) {
           />
         ))}
       </div>
+      <QRCodeDisplay 
+        sessionId={sessionId} 
+        joinUrl={joinUrl} 
+        visible={Boolean(sessionId && joinUrl)}
+      />
+      <style jsx>{`
+        .qr-code-overlay {
+          position: absolute;
+          bottom: 20px;
+          right: 20px;
+          z-index: 1000;
+        }
+        
+        @media (max-width: 768px) {
+          .qr-code-overlay {
+            bottom: 10px;
+            right: 10px;
+            transform: scale(0.8);
+            transform-origin: bottom right;
+          }
+        }
+      `}</style>
     </div>
   );
 } 

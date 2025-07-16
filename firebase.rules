@@ -1,0 +1,37 @@
+{
+  "rules": {
+    "connection_test": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+    "sessions": {
+      "$sessionId": {
+        ".read": "auth != null",
+        ".write": "auth != null",
+        "metadata": {
+          ".validate": "newData.hasChildren(['created', 'production', 'isActive'])"
+        },
+        "users": {
+          "$userId": {
+            ".write": "auth != null",
+            ".validate": "newData.hasChildren(['name', 'role', 'joinedAt'])"
+          }
+        },
+        "notes": {
+          "$noteId": {
+            ".write": "auth != null",
+            ".validate": "newData.hasChildren(['text', 'userId', 'timestamp']) && newData.child('text').val().length <= 5000"
+          }
+        },
+        "activities": {
+          "$activityId": {
+            ".write": "auth != null",
+            ".validate": "newData.hasChildren(['type', 'userId', 'timestamp'])"
+          }
+        }
+      }
+    },
+    ".read": false,
+    ".write": false
+  }
+}

@@ -1,8 +1,14 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import SlateForm from './components/SlateForm';
 import ColorChart from './components/ColorChart';
 import Notes from './components/Notes';
 import { ThemeToggle } from './components/ThemeToggle';
+import { ConnectionStatus } from './components/ConnectionStatus';
+import { LoginModal } from './components/LoginModal';
+import { UserProfile } from './components/UserProfile';
+import { useFirebaseStatus } from './hooks/useFirebaseStatus';
+import { useAuth, authUtils } from './contexts/AuthContext';
+import sessionManager from './services/sessionManager';
 
 function playBeep() {
   const ctx = new (window.AudioContext || window.webkitAudioContext)();
@@ -43,14 +49,27 @@ export default function App() {
   const [syncStatus, setSyncStatus] = useState('Ready');
   const globalTimerRef = useRef();
 
+  // Authentication UI state
+  const [showLoginModal, setShowLoginModal] = useState(false);
+  const [showUserProfile, setShowUserProfile] = useState(false);
+  const { user, isAnonymous, isAuthenticated } = useAuth();
+
   // Local take timer state
   const [takeTimerRunning, setTakeTimerRunning] = useState(false);
   const [takeStartTime, setTakeStartTime] = useState(null);
   const [takeEndTime, setTakeEndTime] = useState(null);
-  const [takeDuration, setTakeDuration] = useState(0);
-  const [takeNumber, setTakeNumber] = useState('1');
+  const [_takeDuration, setTakeDuration] = useState(0);
+  const [_takeNumber, _setTakeNumber] = useState('1');
   const [lastTakeGlow, setLastTakeGlow] = useState(false);
   const notesRef = useRef();
+  
+  // Firebase connection status
+  const firebaseStatus = useFirebaseStatus();
+  
+  // Collaboration state
+  const [sessionId, setSessionId] = useState(null);
+  const [joinUrl, setJoinUrl] = useState(null);
+  const userId = user?.uid || `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
   // Global timer
   useEffect(() => {
@@ -63,32 +82,75 @@ export default function App() {
   }, [isPaused]);
 
   const elapsed = globalTime - startTime;
+  
+  // Cleanup session on unmount (temporarily disabled)
+  // useEffect(() => {
+  //   return () => {
+  //     if (sessionId) {
+  //       sessionService.unsubscribe();
+  //       notesService.destroy();
+  //     }
+  //   };
+  // }, [sessionId]);
 
   // Start take (SYNC)
-  function handleSync() {
+  const handleSync = useCallback(async () => {
     try {
       // Record the exact time the sync button is clicked
       const syncClickTime = Date.now();
+      
+      // Log sync for debugging
+      console.log('[App] Sync clicked at:', new Date(syncClickTime).toISOString());
+      console.log('[App] Firebase status:', firebaseStatus);
+
+      // Create collaboration session if Firebase is available
+      if (firebaseStatus.connected && !sessionId) {
+        try {
+          const session = await sessionManager.createSession(slateInfo, userId);
+          setSessionId(session.sessionId);
+          setJoinUrl(session.joinUrl);
+          
+          console.log('[App] Created session:', session.sessionId);
+          console.log('[App] Join URL:', session.joinUrl);
+        } catch (error) {
+          console.warn('[App] Failed to create session:', error.message);
+        }
+      }
+
+      // Update sync time if session exists
+      if (sessionId) {
+        try {
+          await sessionManager.updateSyncTime(sessionId, syncClickTime);
+        } catch (error) {
+          console.warn('[App] Failed to update sync time:', error.message);
+        }
+      }
+      
       playBeep();
       setShowColorChart(true);
       setSyncStatus('TAKE RUNNING');
       setIsPaused(true);
+      
       // Set timer and note immediately with the snapped time
       setTakeTimerRunning(true);
       setTakeStartTime(syncClickTime);
       setTakeEndTime(null);
       setTakeDuration(0);
-      // Add note for take start
-      if (notesRef.current && notesRef.current.addNoteExternal) {
-        const scene = slateInfo.scene ? `Scene ${slateInfo.scene}` : '';
-        const take = slateInfo.take ? `Take ${slateInfo.take}` : '';
-        const label = [scene, take].filter(Boolean).join(' ');
+      
+      // Add note for take start using notes ref
+      const scene = slateInfo.scene ? `Scene ${slateInfo.scene}` : '';
+      const take = slateInfo.take ? `Take ${slateInfo.take}` : '';
+      const label = [scene, take].filter(Boolean).join(' ');
+      
+      // Add note via localStorage only
+      if (notesRef.current) {
         notesRef.current.addNoteExternal(
           `🎬 Take started at ${formatTime(syncClickTime, true)}${label ? ` (${label})` : ''}`,
           syncClickTime,
-          { ...slateInfo }
+          { ...slateInfo, type: 'take_start' }
         );
       }
+      
       // Show color chart for 3s, then hide and unpause
       setTimeout(() => {
         setShowColorChart(false);
@@ -99,11 +161,12 @@ export default function App() {
       }, 3000);
     } catch (err) {
       console.error('Error in handleSync:', err);
+      setSyncStatus('Error - Try Again');
     }
-  }
+  }, [firebaseStatus, sessionId, slateInfo, notesRef, userId, setSessionId, setJoinUrl, setIsPaused, setSyncStatus, setTakeTimerRunning, setTakeStartTime, setTakeEndTime, setTakeDuration]);
 
   // Stop take
-  function handleStopTake() {
+  const handleStopTake = useCallback(async () => {
     try {
       const now = Date.now();
       setTakeTimerRunning(false);
@@ -111,17 +174,21 @@ export default function App() {
       const duration = now - takeStartTime;
       setTakeDuration(duration);
       setSyncStatus('Ready');
-      // Add note for take end
-      if (notesRef.current && notesRef.current.addNoteExternal) {
-        const scene = slateInfo.scene ? `Scene ${slateInfo.scene}` : '';
-        const take = slateInfo.take ? `Take ${slateInfo.take}` : '';
-        const label = [scene, take].filter(Boolean).join(' ');
+      
+      // Add note for take end using notes ref
+      const scene = slateInfo.scene ? `Scene ${slateInfo.scene}` : '';
+      const take = slateInfo.take ? `Take ${slateInfo.take}` : '';
+      const label = [scene, take].filter(Boolean).join(' ');
+      
+      // Add end note via localStorage only
+      if (notesRef.current) {
         notesRef.current.addNoteExternal(
           `⏹️ Take ended at ${formatTime(now, true)} (duration: ${formatTime(duration, false)})${label ? ` (${label})` : ''}`,
           now,
-          { ...slateInfo }
+          { ...slateInfo, type: 'take_end', duration }
         );
       }
+      
       // Increment take number with animation
       setTimeout(() => {
         setLastTakeGlow(true);
@@ -131,7 +198,7 @@ export default function App() {
     } catch (err) {
       console.error('Error in handleStopTake:', err);
     }
-  }
+  }, [takeStartTime, slateInfo, notesRef, setTakeTimerRunning, setTakeEndTime, setTakeDuration, setSyncStatus, setLastTakeGlow, setSlateInfo]);
 
   function toggleTimeFormat() {
     setUseGlobalTime(v => !v);
@@ -153,7 +220,7 @@ export default function App() {
     }
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [tab, takeTimerRunning, slateInfo, takeStartTime]);
+  }, [tab, takeTimerRunning, slateInfo, takeStartTime, handleSync, handleStopTake]);
 
   // Button label
   const buttonLabel = takeTimerRunning ? 'STOP TAKE' : 'SYNC';
@@ -208,7 +275,7 @@ export default function App() {
         syncButton.removeEventListener('touchend', handleTouchEnd.current);
       }
     };
-  }, [takeTimerRunning]);
+  }, [takeTimerRunning, handleSync, handleStopTake]);
 
   return (
     <div className="container">
@@ -217,6 +284,35 @@ export default function App() {
         <button className={`tab${tab === 'timecode' ? ' active' : ''}`} onClick={() => setTab('timecode')}>Timecode Sync</button>
         <button className={`tab${tab === 'notes' ? ' active' : ''}`} onClick={() => setTab('notes')}>Notes</button>
         <div className="theme-toggle-container">
+          <ConnectionStatus status={firebaseStatus} />
+          
+          {/* User Authentication UI */}
+          {isAuthenticated ? (
+            <div className="user-menu">
+              <button 
+                className="user-button"
+                onClick={() => setShowUserProfile(true)}
+                style={{ backgroundColor: authUtils.getUserColor(user.uid) }}
+              >
+                {user.photoURL ? (
+                  <img src={user.photoURL} alt="Profile" className="user-avatar-small" />
+                ) : (
+                  <span className="user-initial">
+                    {(user.displayName || user.email || 'A').charAt(0).toUpperCase()}
+                  </span>
+                )}
+                {isAnonymous && <span className="anonymous-indicator">👤</span>}
+              </button>
+            </div>
+          ) : (
+            <button 
+              className="login-button"
+              onClick={() => setShowLoginModal(true)}
+            >
+              Sign In
+            </button>
+          )}
+
           <ThemeToggle />
         </div>
       </div>
@@ -243,6 +339,8 @@ export default function App() {
           visible={showColorChart} 
           pausedTimecode={useGlobalTime ? formatTime(globalTime, true) : (takeTimerRunning && takeStartTime ? formatTime(globalTime - takeStartTime, false) : formatTime(elapsed, false))}
           slateInfo={slateInfo}
+          sessionId={sessionId}
+          joinUrl={joinUrl}
         />
       </div>
       <div id="notes-tab" className={`tab-content${tab === 'notes' ? ' active' : ''}`}> 
@@ -250,12 +348,35 @@ export default function App() {
           ref={notesRef}
           slateInfo={slateInfo}
           sessionStart={takeStartTime || startTime}
-          useGlobalTime={useGlobalTime}
           takeTimerRunning={takeTimerRunning}
           takeStartTime={takeStartTime}
           takeEndTime={takeEndTime}
+          sessionId={sessionId}
         />
       </div>
+
+      {/* Authentication Modals */}
+      <LoginModal 
+        isOpen={showLoginModal}
+        onClose={() => setShowLoginModal(false)}
+      />
+
+      {showUserProfile && (
+        <div className="modal-overlay" onClick={() => setShowUserProfile(false)}>
+          <div className="modal-content" onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>User Profile</h2>
+              <button 
+                className="modal-close" 
+                onClick={() => setShowUserProfile(false)}
+              >
+                &times;
+              </button>
+            </div>
+            <UserProfile onClose={() => setShowUserProfile(false)} />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -5,7 +5,6 @@ import {
   exportSessionCSV,
   exportAllSessions,
   getStorageInfo,
-  removeSession,
   clearAllData
 } from '../sessionStorage';
 
@@ -29,7 +28,7 @@ function formatTime(milliseconds, isGlobal = true) {
 
 const PAUSE_THRESHOLD = 2000; // 2 seconds
 
-const Notes = forwardRef(function Notes({ slateInfo, sessionStart, useGlobalTime, takeTimerRunning, takeStartTime, takeEndTime }, ref) {
+const Notes = forwardRef(function Notes({ slateInfo, sessionStart, takeTimerRunning, takeStartTime, takeEndTime, sessionId }, ref) {
   const [noteText, setNoteText] = useState("");
   const [notes, setNotes] = useState([]);
   const [storageInfo, setStorageInfo] = useState(null);
@@ -44,13 +43,13 @@ const Notes = forwardRef(function Notes({ slateInfo, sessionStart, useGlobalTime
     return () => clearInterval(interval);
   }, []);
 
-  // Generate a sessionId for this session
-  const sessionId = `${slateInfo.prod || 'default'}-${sessionStart}`;
+  // Generate a local sessionId for this session (use prop if available)
+  const localSessionId = sessionId || `${slateInfo.prod || 'default'}-${sessionStart}`;
 
   // Load notes from localStorage on mount
   useEffect(() => {
     try {
-      const saved = loadSession(sessionId);
+      const saved = loadSession(localSessionId);
       if (saved) {
         setNotes(saved.notes || []);
         setNoteText(saved.noteText || "");
@@ -59,7 +58,7 @@ const Notes = forwardRef(function Notes({ slateInfo, sessionStart, useGlobalTime
     } catch (err) {
       console.error('Error loading session notes:', err);
     }
-  }, [sessionId]);
+  }, [localSessionId]);
 
   // Debounced save notes to localStorage whenever they change
   useEffect(() => {
@@ -73,7 +72,7 @@ const Notes = forwardRef(function Notes({ slateInfo, sessionStart, useGlobalTime
     saveTimeout.current = setTimeout(() => {
       try {
         if (notes.length > 0 || noteText.trim()) {
-          saveSession(sessionId, {
+          saveSession(localSessionId, {
             notes,
             noteText,
             slateInfo,
@@ -88,7 +87,7 @@ const Notes = forwardRef(function Notes({ slateInfo, sessionStart, useGlobalTime
       }
     }, 400); // 400ms debounce
     return () => clearTimeout(saveTimeout.current);
-  }, [notes, noteText, sessionId, slateInfo, sessionStart]);
+  }, [notes, noteText, localSessionId, slateInfo, sessionStart]);
 
   // Show storage warning if usage exceeds 80%
   useEffect(() => {
@@ -100,10 +99,11 @@ const Notes = forwardRef(function Notes({ slateInfo, sessionStart, useGlobalTime
   }, [storageInfo]);
 
   // Add a new note with timestamp
-  function addNote(text) {
+  async function addNote(text) {
     try {
       if (!text.trim()) return;
-      const now = Date.now();
+      
+      // For now, always use localStorage fallback
       const newNote = {
         id: Date.now(),
         timecodeIn: formatTime(now, true),
@@ -120,8 +120,9 @@ const Notes = forwardRef(function Notes({ slateInfo, sessionStart, useGlobalTime
   }
 
   // Add note externally (from App)
-  function addNoteExternal(text, timestamp, customSlateInfo) {
+  async function addNoteExternal(text, timestamp, customSlateInfo) {
     try {
+      // For now, always use localStorage fallback
       const newNote = {
         id: timestamp,
         timecodeIn: formatTime(timestamp, true),
@@ -147,7 +148,7 @@ const Notes = forwardRef(function Notes({ slateInfo, sessionStart, useGlobalTime
     
     // Auto-save the current note text
     if (text.trim()) {
-      saveSession(sessionId, {
+      saveSession(localSessionId, {
         notes,
         noteText: text,
         slateInfo,
@@ -171,7 +172,7 @@ const Notes = forwardRef(function Notes({ slateInfo, sessionStart, useGlobalTime
   }
 
   // Export notes as CSV
-  function exportNotesCSV() {
+  function _exportNotesCSV() {
     if (notes.length === 0) {
       alert('No notes to export!');
       return;
@@ -244,7 +245,7 @@ const Notes = forwardRef(function Notes({ slateInfo, sessionStart, useGlobalTime
     }
   };
 
-  const handleNoteTouchEnd = (e) => {
+  const handleNoteTouchEnd = () => {
     // Reset touch state
     setTouchStartTime(null);
     setTouchStartX(null);
@@ -305,6 +306,8 @@ const Notes = forwardRef(function Notes({ slateInfo, sessionStart, useGlobalTime
           Warning: Storage almost full! Please backup and clear old sessions.
         </div>
       )}
+      {/* Collaboration Status - temporarily disabled */}
+      
       <div className="notes-timecode-bar">
         <span className="notes-timecode">{
           takeStartTime
@@ -379,6 +382,75 @@ const Notes = forwardRef(function Notes({ slateInfo, sessionStart, useGlobalTime
           </div>
         ))}
       </div>
+      
+      {/* Collaboration Styles */}
+      <style jsx>{`
+        .collaboration-status {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding: 8px 12px;
+          background: rgba(0, 123, 255, 0.1);
+          border-radius: 6px;
+          margin-bottom: 12px;
+          font-size: 12px;
+        }
+        
+        .session-info {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+        
+        .status-indicator {
+          width: 8px;
+          height: 8px;
+          border-radius: 50%;
+          background: #28a745;
+        }
+        
+        .status-indicator.offline {
+          background: #dc3545;
+        }
+        
+        .session-id {
+          font-family: monospace;
+          color: #666;
+        }
+        
+        .user-count {
+          color: #007bff;
+          font-weight: 500;
+        }
+        
+        .connected-users {
+          display: flex;
+          gap: 4px;
+        }
+        
+        .user-badge {
+          width: 24px;
+          height: 24px;
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 10px;
+          font-weight: bold;
+          color: white;
+          text-shadow: 1px 1px 1px rgba(0,0,0,0.5);
+        }
+        
+        @media (prefers-color-scheme: dark) {
+          .collaboration-status {
+            background: rgba(0, 123, 255, 0.2);
+          }
+          
+          .session-id {
+            color: #aaa;
+          }
+        }
+      `}</style>
     </div>
   );
 });

@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Firebase Status Debug</title>
+    <style>
+        body { 
+            font-family: monospace; 
+            padding: 20px; 
+            background: #f5f5f5; 
+        }
+        .status-container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .status-item {
+            margin: 8px 0;
+            padding: 8px;
+            border-radius: 4px;
+        }
+        .status-online { background: #d4edda; color: #155724; }
+        .status-connecting { background: #fff3cd; color: #856404; }
+        .status-error { background: #f8d7da; color: #721c24; }
+        .status-offline { background: #e2e3e5; color: #383d41; }
+        .log-container {
+            background: #1e1e1e;
+            color: #00ff00;
+            padding: 15px;
+            border-radius: 8px;
+            max-height: 400px;
+            overflow-y: auto;
+            font-size: 12px;
+        }
+        .timestamp { color: #888; }
+        .success { color: #00ff00; }
+        .error { color: #ff6666; }
+        .info { color: #66b3ff; }
+    </style>
+</head>
+<body>
+    <h1>🔥 Firebase Status Debug Tool</h1>
+    
+    <div class="status-container">
+        <h2>Current Status</h2>
+        <div id="current-status">Initializing...</div>
+    </div>
+
+    <div class="status-container">
+        <h2>Status History</h2>
+        <div id="status-history"></div>
+    </div>
+
+    <div class="status-container">
+        <h2>Console Logs</h2>
+        <div class="log-container" id="logs"></div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+        import { getDatabase, ref, set, get } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js';
+        import { getAuth, signInAnonymously } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
+
+        // Firebase config (from .env)
+        const firebaseConfig = {
+            apiKey: "AIzaSyDxnNkYstpQXvLAtDVTNK37u7JGyR8rUOE",
+            authDomain: "collabsync-5d1fb.firebaseapp.com",
+            projectId: "collabsync-5d1fb",
+            storageBucket: "collabsync-5d1fb.firebasestorage.app",
+            messagingSenderId: "317288945376",
+            appId: "1:317288945376:web:1f3b01e739fc4454b8e285",
+            measurementId: "G-TSQ0QRELQS",
+            databaseURL: "https://collabsync-5d1fb-default-rtdb.firebaseio.com"
+        };
+
+        // Status tracking
+        let statusHistory = [];
+        
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const logElement = document.getElementById('logs');
+            const logEntry = document.createElement('div');
+            logEntry.innerHTML = `<span class="timestamp">[${timestamp}]</span> <span class="${type}">${message}</span>`;
+            logElement.appendChild(logEntry);
+            logElement.scrollTop = logElement.scrollHeight;
+            console.log(`[${timestamp}] ${message}`);
+        }
+
+        function updateStatus(status) {
+            const statusEl = document.getElementById('current-status');
+            const historyEl = document.getElementById('status-history');
+            
+            let statusClass = 'status-offline';
+            let statusText = 'Offline Mode';
+            
+            if (status.isAvailable && status.initialized) {
+                if (status.connected) {
+                    statusClass = 'status-online';
+                    statusText = 'Live Sync';
+                } else if (status.error) {
+                    statusClass = 'status-error';
+                    statusText = 'Connection Error';
+                } else {
+                    statusClass = 'status-connecting';
+                    statusText = 'Connecting...';
+                }
+            }
+            
+            statusEl.innerHTML = `
+                <div class="status-item ${statusClass}">
+                    <strong>${statusText}</strong>
+                </div>
+                <div>Available: ${status.isAvailable}</div>
+                <div>Initialized: ${status.initialized}</div>
+                <div>Connected: ${status.connected}</div>
+                <div>Error: ${status.error || 'None'}</div>
+                <div>Last Checked: ${status.lastChecked || 'Never'}</div>
+            `;
+            
+            // Add to history
+            statusHistory.push({
+                timestamp: new Date().toLocaleTimeString(),
+                status: { ...status }
+            });
+            
+            // Keep only last 10 entries
+            if (statusHistory.length > 10) {
+                statusHistory = statusHistory.slice(-10);
+            }
+            
+            // Update history display
+            historyEl.innerHTML = statusHistory.map(entry => `
+                <div class="status-item">
+                    <strong>${entry.timestamp}</strong> - 
+                    Available: ${entry.status.isAvailable}, 
+                    Initialized: ${entry.status.initialized}, 
+                    Connected: ${entry.status.connected}
+                    ${entry.status.error ? `, Error: ${entry.status.error}` : ''}
+                </div>
+            `).join('');
+        }
+
+        async function testFirebaseConnection() {
+            log('🚀 Starting Firebase connection test...', 'info');
+            
+            const status = {
+                isAvailable: false,
+                initialized: false,
+                connected: false,
+                error: null,
+                lastChecked: null
+            };
+            
+            updateStatus(status);
+            
+            try {
+                log('📱 Initializing Firebase...', 'info');
+                const app = initializeApp(firebaseConfig);
+                const database = getDatabase(app);
+                const auth = getAuth(app);
+                
+                status.isAvailable = true;
+                status.initialized = true;
+                updateStatus(status);
+                log('✅ Firebase initialized successfully', 'success');
+                
+                log('🔐 Starting anonymous authentication...', 'info');
+                const userCredential = await signInAnonymously(auth);
+                log(`✅ Anonymous authentication successful: ${userCredential.user.uid}`, 'success');
+                
+                log('🔌 Testing database connection...', 'info');
+                const testRef = ref(database, 'connection_test');
+                const testValue = { timestamp: Date.now(), test: true, user: userCredential.user.uid };
+                
+                await set(testRef, testValue);
+                log('✅ Write test successful', 'success');
+                
+                const snapshot = await get(testRef);
+                if (snapshot.exists() && snapshot.val().test === true) {
+                    status.connected = true;
+                    status.lastChecked = new Date().toISOString();
+                    updateStatus(status);
+                    log('✅ Read test successful', 'success');
+                    log('🎉 Firebase connection fully working!', 'success');
+                    
+                    // Clean up
+                    await set(testRef, null);
+                    log('✅ Cleanup completed', 'success');
+                } else {
+                    status.error = 'Read test failed';
+                    updateStatus(status);
+                    log('❌ Read test failed', 'error');
+                }
+                
+            } catch (error) {
+                status.error = error.message;
+                status.lastChecked = new Date().toISOString();
+                updateStatus(status);
+                log(`❌ Firebase connection test failed: ${error.message}`, 'error');
+            }
+        }
+
+        // Start the test
+        testFirebaseConnection();
+    </script>
+</body>
+</html>

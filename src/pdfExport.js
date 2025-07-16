@@ -54,7 +54,7 @@ export async function exportSessionPDF({
       return truncated + ellipsis;
     };
 
-    const wrapTextInColumn = (text, maxWidth) => {
+    const _wrapTextInColumn = (text, maxWidth) => {
       if (!text) return [''];
       const textStr = text.toString();
       const manualLines = textStr.split(/\r?\n/);
@@ -107,7 +107,7 @@ export async function exportSessionPDF({
     };
 
     // --- New robust word-wrapping and hyphenation for notes column ---
-    function wrapTextWithHyphenation(doc, text, maxWidth) {
+    function _wrapTextWithHyphenation(doc, text, maxWidth) {
       if (!text) return [''];
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(8);

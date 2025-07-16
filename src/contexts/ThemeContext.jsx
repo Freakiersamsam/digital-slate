@@ -53,4 +53,16 @@ export function useTheme() {
     throw new Error('useTheme must be used within a ThemeProvider');
   }
   return context;
-} 
+}
+
+// Additional theme utilities
+export const themeUtils = {
+  isDark: (theme) => theme === 'dark',
+  isLight: (theme) => theme === 'light',
+  getSystemTheme: () => {
+    if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+      return 'dark';
+    }
+    return 'light';
+  }
+};

@@ -1,112 +1,167 @@
-# Digital Slate
+# CollabSync - Real-time Video Production Notes
 
-A modern web app for digital film slating, camera synchronization, and note-taking on set. Built with React and Vite, it provides a clean, responsive interface for tracking takes, timecodes, and production notes, with easy CSV export for post-production workflows.
+Synchronized collaborative note-taking for video production teams. Show the sync screen to camera, share with your team, and get timestamped notes directly in your editing timeline.
 
-## Features
+## 🎬 For Video Productions
 
-- Modern, clean, and responsive UI
-- Digital film slate: track production, scene, take, roll, camera, director, and notes
-- Timecode display (global and session-relative)
-- Start/End Take with beep (bip) and color chart flash
-- Take timing: snapshot timecode in/out and duration
-- Notes system: timestamped notes, associated with takes and scenes
-- Notes auto-save to browser (localStorage)
-- CSV export of notes and takes (with timecode in/out, comment, and placeholder for AI summary)
-- HTML report export for session notes
-- Color chart display for camera calibration
-- Fully offline-capable (no backend required)
-- Backend-ready code structure for future cloud sync
+Perfect for:
+- **Directors**: Performance and scene notes
+- **Script Supervisors**: Continuity tracking  
+- **Editors**: Pre-edit markers and selects
+- **Clients**: Real-time feedback during shoots
+- **DOPs**: Technical notes and camera settings
 
-## TODO / Roadmap
+## 🚀 Quick Start
 
-### Phase 1 - Local Improvements (1-2 weeks)
-#### Quick Wins (1-2 days each)
-- [x] Add favicon and app icon
-- [x] Implement dark/light mode toggle
-- [ ] Improve landscape mode support for mobile
-- [x] Add basic error handling and user feedback
-- [x] Enhance mobile keyboard handling
-- [x] Optimize basic localStorage usage
+1. **Start Session**: Create new session, show sync screen to all cameras
+2. **Share Access**: Team scans QR or uses link to join
+3. **Take Notes**: Everything is timestamped automatically
+4. **Export**: Download as Premiere/DaVinci markers
 
-#### Core Features (3-7 days each)
-- [ ] Implement PDF export (user can choose between JSON or PDF export)
-- [ ] Add MarkerBox for Premiere notes export
-- [ ] Add haptic feedback for mobile devices
-- [ ] Implement notes categories and tags
-- [ ] Add search and filter functionality
-- [ ] Set up proper error boundaries
-- [ ] Migrate to TypeScript
-- [ ] Implement state management (Redux/Context)
-- [ ] Add unit and integration tests
-- [ ] Set up logging system
+## ✨ Key Features
 
-#### Advanced Local Features (1-2 weeks each)
-- [ ] Implement AI integration (client-side)
-- [x] Add advanced localStorage optimization with compression
-- [x] Set up service worker for offline support
-- [ ] Implement virtual scrolling for large note lists
+### Instant Sync
+- Audio beep + visual marker for frame-accurate sync
+- QR code for instant team access
+- Works with any camera/audio setup
 
-### Phase 2 - Server Integration (3-6 weeks)
-#### Basic Server Features (1-2 weeks each)
-- [ ] Set up user authentication system
-- [ ] Implement basic user management
-- [ ] Add simple project management
-- [ ] Set up basic real-time sync
+### Real-time Collaboration  
+- Multiple users simultaneously
+- See who's typing in real-time
+- Automatic conflict resolution
+- Color-coded contributions
 
-#### Advanced Server Features (2-4 weeks each)
-- [ ] Implement QR code sharing system
-- [ ] Add advanced real-time sync between devices
-- [ ] Develop advanced project management
-- [ ] Enable multi-device collaboration
-- [ ] Set up cloud backup system
+### Transparent Timestamping
+- Every keystroke tracked
+- Natural pause detection
+- No manual timestamps needed
+- Microsecond precision
 
-### Implementation Notes
-- Phase 1 can be implemented independently and locally
-- Phase 2 requires server setup and should be planned accordingly
-- Each feature in Phase 1 can be developed and tested in isolation
-- Server features should be planned together to ensure consistent architecture
-- Consider using a BaaS (Backend as a Service) solution for Phase 2 to speed up development
+### AI-Powered Cleanup
+- Organize messy notes without losing timing
+- Categorize by department
+- Extract action items
+- Keep original + cleaned versions
 
-### Technical Dependencies
-#### Phase 1
-- TypeScript
-- Redux/Context API
-- Jest/React Testing Library
-- PDF generation library
-- Compression library
-- Service Worker API
-- Virtual scrolling library
+### Direct Export to NLEs
+- Premiere Pro (FCP XML)
+- DaVinci Resolve (EDL/XML)
+- Avid (ALE)
+- Final Cut Pro (FCPXML)
+- CSV for custom workflows
 
-#### Phase 2
-- Authentication system (e.g., Auth0, Firebase)
-- Real-time database (e.g., Firebase, Supabase)
-- WebSocket implementation
-- QR code generation library
-- Cloud storage solution
+## 🛠️ Technical Stack
 
-## Getting Started
+- **Frontend**: React + Vite
+- **Real-time**: Firebase/Supabase
+- **AI**: OpenAI API
+- **Export**: Custom parsers for each NLE format
+- **Mobile**: PWA with offline support
 
-To run locally:
+## 🚦 MVP Roadmap (3-4 weeks)
 
-```sh
+### Week 1: Real-time Foundation
+- [ ] Firebase/Supabase backend setup
+- [ ] Session/room management system
+- [ ] Enhanced sync with QR codes
+- [ ] Real-time collaborative notes
+- [ ] User presence tracking
+
+### Week 2: Intelligence Layer
+- [ ] Automatic action timestamping
+- [ ] Keystroke tracking and chunking
+- [ ] AI integration for cleanup
+- [ ] EDL/XML export implementation
+- [ ] Marker categorization
+
+### Week 3-4: Polish & Launch
+- [ ] Multi-user UI enhancements
+- [ ] Export format templates
+- [ ] Performance optimization
+- [ ] Documentation & demos
+- [ ] Beta testing
+
+## 🚀 Phase 2 Roadmap (Future)
+
+### Enhanced Collaboration
+- [ ] Voice note transcription
+- [ ] Frame grab attachments
+- [ ] Department-specific views
+- [ ] Advanced permissions
+
+### Professional Features
+- [ ] Plugin for major NLEs
+- [ ] Multi-camera sync
+- [ ] Cloud rendering integration
+- [ ] API for third-party tools
+- [ ] Enterprise features
+
+## 📱 Installation
+
+```bash
+# Clone repository
+git clone https://github.com/Freakiersamsam/digital-slate
+
+# Install dependencies  
 npm install
+
+# Start development server
 npm run dev
-```
 
-To build and deploy to GitHub Pages:
-
-```sh
+# For production
 npm run build
-npm run deploy
 ```
 
-## Backend Server for CSV Export (optional)
+## 🔧 Configuration
 
-To run the backend server (for saving and exporting session CSV files):
-
-```sh
-npm install
-npm run server
+Create `.env` file:
+```env
+VITE_FIREBASE_API_KEY=your-key
+VITE_OPENAI_API_KEY=your-key
 ```
 
-The server will listen on port 5000 by default.
+## 📖 Usage Guide
+
+### Starting a Session
+1. Fill production details (optional)
+2. Click "Start Session" 
+3. Show sync screen to all cameras
+4. Share session link/QR with team
+
+### Taking Notes
+- Just type - everything is timestamped
+- Use @mentions for specific departments
+- Add #tags for categorization
+- Attach images or drawings
+
+### Exporting to Your NLE
+1. Click "Export" 
+2. Choose format (Premiere/DaVinci/etc)
+3. Select timeline framerate
+4. Import markers directly into your project
+
+### Supported Export Formats
+
+**EDL (Edit Decision List)**
+- Universal format for basic markers
+- Compatible with most NLEs
+- Includes comments and colors
+
+**FCP XML**
+- Full marker metadata
+- Categories and keywords
+- Color coding
+- Compatible with Premiere Pro, DaVinci Resolve
+
+**Custom CSV**
+- For spreadsheet workflows
+- Includes all timestamp data
+- Customizable columns
+
+## 🤝 Contributing
+
+We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details.
+
+## 📄 License
+
+MIT License - see [LICENSE](LICENSE) file for details.
