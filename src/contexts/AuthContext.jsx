@@ -1,6 +1,4 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { auth } from '../config/firebase';
-import { onAuthStateChanged } from 'firebase/auth';
 
 const AuthContext = createContext();
 
@@ -8,36 +6,204 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isAnonymous, setIsAnonymous] = useState(false);
+  const [authError, setAuthError] = useState(null);
+  const [offlineMode, setOfflineMode] = useState(false);
+  const [isOnline, setIsOnline] = useState(false);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
-      if (firebaseUser) {
-        setUser({
-          uid: firebaseUser.uid,
-          email: firebaseUser.email,
-          displayName: firebaseUser.displayName || 'Anonymous User',
-          photoURL: firebaseUser.photoURL,
-          isAnonymous: firebaseUser.isAnonymous,
-          createdAt: firebaseUser.metadata.creationTime,
-          lastLoginAt: firebaseUser.metadata.lastSignInTime
-        });
-        setIsAnonymous(firebaseUser.isAnonymous);
+    let mounted = true;
+    let unsubscribe = null;
+
+    const initializeAuth = async () => {
+      try {
+        console.log('[AuthContext] Starting auth initialization...');
+        
+        // Import Firebase services
+        const { getFirebaseServices } = await import('../config/firebase');
+        const firebaseServices = await getFirebaseServices();
+        
+        console.log('[AuthContext] Firebase services result:', firebaseServices);
+        
+        // Check if Firebase is available
+        if (!firebaseServices.success || firebaseServices.offline) {
+          console.log('[AuthContext] Firebase not available, enabling offline mode');
+          
+          if (mounted) {
+            setOfflineMode(true);
+            setIsOnline(false);
+            setAuthError(null);
+            setLoading(false);
+            
+            // Create offline user
+            const offlineUser = {
+              uid: `offline-${Date.now()}`,
+              email: null,
+              displayName: 'Offline User',
+              photoURL: null,
+              isAnonymous: true,
+              createdAt: new Date().toISOString(),
+              lastLoginAt: new Date().toISOString(),
+              isOffline: true
+            };
+            
+            setUser(offlineUser);
+            setIsAnonymous(true);
+          }
+          return;
+        }
+
+        // Firebase is available, set up online mode
+        console.log('[AuthContext] Firebase available, setting up online mode');
+        setIsOnline(true);
+        setOfflineMode(false);
+
+        // Import Firebase auth functions
+        const { onAuthStateChanged } = await import('firebase/auth');
+        
+        // Set up auth state listener
+        unsubscribe = onAuthStateChanged(
+          firebaseServices.auth,
+          (firebaseUser) => {
+            if (!mounted) return;
+            
+            try {
+              console.log('[AuthContext] Auth state changed:', firebaseUser ? 'authenticated' : 'not authenticated');
+              
+              if (firebaseUser) {
+                setUser({
+                  uid: firebaseUser.uid,
+                  email: firebaseUser.email,
+                  displayName: firebaseUser.displayName || 'Anonymous User',
+                  photoURL: firebaseUser.photoURL,
+                  isAnonymous: firebaseUser.isAnonymous,
+                  createdAt: firebaseUser.metadata.creationTime,
+                  lastLoginAt: firebaseUser.metadata.lastSignInTime,
+                  isOffline: false
+                });
+                setIsAnonymous(firebaseUser.isAnonymous);
+              } else {
+                setUser(null);
+                setIsAnonymous(false);
+              }
+              setLoading(false);
+              setAuthError(null);
+            } catch (error) {
+              console.error('[AuthContext] Error processing auth state change:', error);
+              if (mounted) {
+                enableOfflineMode();
+              }
+            }
+          },
+          (error) => {
+            console.error('[AuthContext] Auth state listener error:', error);
+            if (mounted) {
+              enableOfflineMode();
+            }
+          }
+        );
+        
+        console.log('[AuthContext] Auth listener set up successfully');
+        
+      } catch (error) {
+        console.error('[AuthContext] Failed to initialize auth:', error);
+        if (mounted) {
+          enableOfflineMode();
+        }
+      }
+    };
+
+    initializeAuth();
+
+    return () => {
+      mounted = false;
+      if (unsubscribe) {
+        try {
+          unsubscribe();
+        } catch (error) {
+          console.error('[AuthContext] Error during cleanup:', error);
+        }
+      }
+    };
+  }, []);
+
+  // Function to enable offline mode
+  const enableOfflineMode = () => {
+    console.log('[AuthContext] Enabling offline mode');
+    setOfflineMode(true);
+    setIsOnline(false);
+    setAuthError(null);
+    setLoading(false);
+    
+    // Create offline user
+    const offlineUser = {
+      uid: `offline-${Date.now()}`,
+      email: null,
+      displayName: 'Offline User',
+      photoURL: null,
+      isAnonymous: true,
+      createdAt: new Date().toISOString(),
+      lastLoginAt: new Date().toISOString(),
+      isOffline: true
+    };
+    
+    setUser(offlineUser);
+    setIsAnonymous(true);
+  };
+
+  // Function to sign out (works in both online and offline modes)
+  const signOut = async () => {
+    try {
+      if (isOnline && !offlineMode) {
+        // Online sign out
+        const authService = (await import('../services/authService')).default;
+        await authService.signOut();
       } else {
+        // Offline sign out - just clear local state
         setUser(null);
         setIsAnonymous(false);
       }
-      setLoading(false);
-    });
+    } catch (error) {
+      console.error('[AuthContext] Sign out error:', error);
+      // Fallback to local sign out
+      setUser(null);
+      setIsAnonymous(false);
+    }
+  };
 
-    return unsubscribe;
-  }, []);
+  // Function to retry Firebase connection
+  const retryConnection = async () => {
+    setLoading(true);
+    setAuthError(null);
+    
+    try {
+      const { getFirebaseServices } = await import('../config/firebase');
+      const firebaseServices = await getFirebaseServices();
+      
+      if (firebaseServices.success && !firebaseServices.offline) {
+        // Connection successful, restart auth initialization
+        window.location.reload();
+      } else {
+        setAuthError('Still unable to connect to Firebase');
+        setLoading(false);
+      }
+    } catch (error) {
+      setAuthError('Failed to reconnect to Firebase');
+      setLoading(false);
+    }
+  };
 
   const value = {
     user,
     loading,
     isAnonymous,
+    authError,
+    offlineMode,
+    isOnline,
+    enableOfflineMode,
+    signOut,
+    retryConnection,
     isAuthenticated: !!user,
-    isFullyAuthenticated: !!user && !user.isAnonymous
+    isFullyAuthenticated: !!user && !user.isAnonymous && !user.isOffline
   };
 
   return (

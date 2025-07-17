@@ -1,30 +1,26 @@
 import React from 'react';
+import { useAuth } from '../contexts/AuthContext';
 
-export function ConnectionStatus({ status }) {
-  // Don't render if status is not available
-  if (!status) {
-    return null;
-  }
+export function ConnectionStatus() {
+  const { offlineMode, isOnline, retryConnection } = useAuth();
 
   // Determine status type and display
   let statusType = 'offline';
   let statusText = 'Offline Mode';
   let statusColor = '#6c757d';
 
-  if (status.isAvailable && status.initialized) {
-    if (status.connected) {
-      statusType = 'online';
-      statusText = 'Live Sync';
-      statusColor = '#28a745';
-    } else if (status.error) {
-      statusType = 'error';
-      statusText = 'Connection Error';
-      statusColor = '#dc3545';
-    } else {
-      statusType = 'connecting';
-      statusText = 'Connecting...';
-      statusColor = '#ffc107';
-    }
+  if (isOnline) {
+    statusType = 'online';
+    statusText = 'Live Sync';
+    statusColor = '#28a745';
+  } else if (offlineMode) {
+    statusType = 'offline';
+    statusText = 'Offline Mode';
+    statusColor = '#6c757d';
+  } else {
+    statusType = 'connecting';
+    statusText = 'Connecting...';
+    statusColor = '#ffc107';
   }
 
   const containerStyle = {
@@ -38,7 +34,8 @@ export function ConnectionStatus({ status }) {
     marginRight: '8px',
     background: `${statusColor}20`,
     color: statusColor,
-    border: `1px solid ${statusColor}40`
+    border: `1px solid ${statusColor}40`,
+    cursor: offlineMode ? 'pointer' : 'default'
   };
 
   const dotStyle = {
@@ -49,8 +46,18 @@ export function ConnectionStatus({ status }) {
     animation: statusType === 'connecting' ? 'pulse 1.5s ease-in-out infinite' : 'none'
   };
 
+  const handleClick = () => {
+    if (offlineMode) {
+      retryConnection();
+    }
+  };
+
   return (
-    <div style={containerStyle} title={status.error || `Last checked: ${status.lastChecked || 'Never'}`}>
+    <div 
+      style={containerStyle} 
+      title={offlineMode ? 'Click to retry connection' : 'Connection status'}
+      onClick={handleClick}
+    >
       <span style={dotStyle}></span>
       <span>{statusText}</span>
       <style jsx>{`

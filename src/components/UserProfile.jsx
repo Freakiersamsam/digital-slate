@@ -3,7 +3,7 @@ import { useAuth, authUtils } from '../contexts/AuthContext';
 import authService from '../services/authService';
 
 export function UserProfile({ onClose }) {
-  const { user, isAnonymous } = useAuth();
+  const { user, isAnonymous, signOut, offlineMode } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
   const [displayName, setDisplayName] = useState(user?.displayName || '');
   const [loading, setLoading] = useState(false);
@@ -17,6 +17,12 @@ export function UserProfile({ onClose }) {
     setLoading(true);
     setError('');
     setSuccess('');
+
+    if (offlineMode) {
+      setError('Profile updates are not available in offline mode.');
+      setLoading(false);
+      return;
+    }
 
     try {
       const result = await authService.updateUserProfile({
@@ -41,7 +47,7 @@ export function UserProfile({ onClose }) {
     if (window.confirm('Are you sure you want to sign out?')) {
       setLoading(true);
       try {
-        await authService.signOut();
+        await signOut();
         onClose();
       } catch (err) {
         setError('Failed to sign out. Please try again.');
@@ -76,7 +82,9 @@ export function UserProfile({ onClose }) {
             <p className="user-email">{user.email}</p>
           )}
           <p className="user-status">
-            {isAnonymous ? (
+            {user.isOffline ? (
+              <span className="status-offline">Offline Mode</span>
+            ) : isAnonymous ? (
               <span className="status-anonymous">Anonymous User</span>
             ) : (
               <span className="status-authenticated">Authenticated</span>
@@ -85,7 +93,14 @@ export function UserProfile({ onClose }) {
         </div>
       </div>
 
-      {isAnonymous && (
+      {user.isOffline && (
+        <div className="offline-notice">
+          <h4>Offline Mode</h4>
+          <p>You're currently offline. Your data is saved locally and will sync when you reconnect.</p>
+        </div>
+      )}
+
+      {isAnonymous && !user.isOffline && (
         <div className="anonymous-notice">
           <h4>Save Your Data</h4>
           <p>You're using anonymous mode. Create an account to keep your data safe and access it from any device.</p>
@@ -157,7 +172,7 @@ export function UserProfile({ onClose }) {
               <span className="value">{lastSignIn}</span>
             </div>
             
-            {!isAnonymous && (
+            {!isAnonymous && !user.isOffline && (
               <button 
                 onClick={() => setIsEditing(true)}
                 className="button secondary"
@@ -254,6 +269,35 @@ export function UserProfile({ onClose }) {
           padding: 2px 8px;
           border-radius: 12px;
           font-weight: 500;
+        }
+
+        .status-offline {
+          color: #666;
+          background: #f0f0f0;
+          padding: 2px 8px;
+          border-radius: 12px;
+          font-weight: 500;
+        }
+
+        .offline-notice {
+          background: #f0f0f0;
+          border: 1px solid #ccc;
+          border-radius: 8px;
+          padding: 16px;
+          margin-bottom: 20px;
+        }
+
+        .offline-notice h4 {
+          margin: 0 0 8px 0;
+          color: #666;
+          font-size: 16px;
+        }
+
+        .offline-notice p {
+          margin: 0;
+          color: #666;
+          font-size: 14px;
+          line-height: 1.4;
         }
 
         .anonymous-notice {

@@ -1,28 +1,57 @@
-import { 
-  signInWithEmailAndPassword,
-  createUserWithEmailAndPassword,
-  signInWithPopup,
-  GoogleAuthProvider,
-  signInAnonymously,
-  signOut,
-  updateProfile,
-  sendPasswordResetEmail,
-  linkWithCredential,
-  EmailAuthProvider
-} from 'firebase/auth';
-import { auth } from '../config/firebase';
-
 class AuthService {
   constructor() {
-    this.googleProvider = new GoogleAuthProvider();
-    this.googleProvider.setCustomParameters({
-      prompt: 'select_account'
-    });
+    this.googleProvider = null;
+    this._authPromise = null;
+    this._isOfflineMode = false;
   }
 
-  // Anonymous authentication (existing functionality)
-  async signInAnonymously() {
+  // Get auth instance safely
+  async getAuth() {
+    if (!this._authPromise) {
+      this._authPromise = this._initializeAuth();
+    }
+    return this._authPromise;
+  }
+
+  async _initializeAuth() {
     try {
+      const { getFirebaseServices } = await import('../config/firebase');
+      const services = await getFirebaseServices();
+      
+      if (!services.success || services.offline) {
+        this._isOfflineMode = true;
+        throw new Error('Firebase auth not available - offline mode');
+      }
+      
+      // Initialize Google provider
+      const { GoogleAuthProvider } = await import('firebase/auth');
+      this.googleProvider = new GoogleAuthProvider();
+      this.googleProvider.setCustomParameters({
+        prompt: 'select_account'
+      });
+      
+      this._isOfflineMode = false;
+      return services.auth;
+    } catch (error) {
+      this._isOfflineMode = true;
+      throw error;
+    }
+  }
+
+  // Check if in offline mode
+  isOfflineMode() {
+    return this._isOfflineMode;
+  }
+
+  // Anonymous authentication
+  async signInAnonymously() {
+    if (this.isOfflineMode()) {
+      return { success: false, error: 'Authentication not available in offline mode' };
+    }
+
+    try {
+      const auth = await this.getAuth();
+      const { signInAnonymously } = await import('firebase/auth');
       const result = await signInAnonymously(auth);
       console.log('[AuthService] Anonymous sign-in successful:', result.user.uid);
       return { success: true, user: result.user };
@@ -34,7 +63,13 @@ class AuthService {
 
   // Email/Password authentication
   async signInWithEmail(email, password) {
+    if (this.isOfflineMode()) {
+      return { success: false, error: 'Authentication not available in offline mode' };
+    }
+
     try {
+      const auth = await this.getAuth();
+      const { signInWithEmailAndPassword } = await import('firebase/auth');
       const result = await signInWithEmailAndPassword(auth, email, password);
       console.log('[AuthService] Email sign-in successful:', result.user.uid);
       return { success: true, user: result.user };
@@ -46,7 +81,13 @@ class AuthService {
 
   // Email/Password registration
   async signUpWithEmail(email, password, displayName) {
+    if (this.isOfflineMode()) {
+      return { success: false, error: 'Authentication not available in offline mode' };
+    }
+
     try {
+      const auth = await this.getAuth();
+      const { createUserWithEmailAndPassword, updateProfile } = await import('firebase/auth');
       const result = await createUserWithEmailAndPassword(auth, email, password);
       
       // Update display name
@@ -64,7 +105,13 @@ class AuthService {
 
   // Google Sign-In
   async signInWithGoogle() {
+    if (this.isOfflineMode()) {
+      return { success: false, error: 'Authentication not available in offline mode' };
+    }
+
     try {
+      const auth = await this.getAuth();
+      const { signInWithPopup } = await import('firebase/auth');
       const result = await signInWithPopup(auth, this.googleProvider);
       console.log('[AuthService] Google sign-in successful:', result.user.uid);
       return { success: true, user: result.user };
@@ -76,7 +123,13 @@ class AuthService {
 
   // Link anonymous account with email/password
   async linkAnonymousWithEmail(email, password, displayName) {
+    if (this.isOfflineMode()) {
+      return { success: false, error: 'Authentication not available in offline mode' };
+    }
+
     try {
+      const auth = await this.getAuth();
+      const { linkWithCredential, EmailAuthProvider, updateProfile } = await import('firebase/auth');
       const credential = EmailAuthProvider.credential(email, password);
       const result = await linkWithCredential(auth.currentUser, credential);
       
@@ -95,7 +148,13 @@ class AuthService {
 
   // Link anonymous account with Google
   async linkAnonymousWithGoogle() {
+    if (this.isOfflineMode()) {
+      return { success: false, error: 'Authentication not available in offline mode' };
+    }
+
     try {
+      const auth = await this.getAuth();
+      const { linkWithCredential } = await import('firebase/auth');
       const result = await linkWithCredential(auth.currentUser, this.googleProvider);
       console.log('[AuthService] Anonymous account linked with Google:', result.user.uid);
       return { success: true, user: result.user };
@@ -105,21 +164,35 @@ class AuthService {
     }
   }
 
-  // Sign out
+  // Sign out (works in both online and offline modes)
   async signOut() {
+    if (this.isOfflineMode()) {
+      console.log('[AuthService] Offline sign-out successful');
+      return { success: true };
+    }
+
     try {
+      const auth = await this.getAuth();
+      const { signOut } = await import('firebase/auth');
       await signOut(auth);
       console.log('[AuthService] Sign-out successful');
       return { success: true };
     } catch (error) {
       console.error('[AuthService] Sign-out failed:', error.message);
-      return { success: false, error: error.message };
+      // Even if Firebase sign-out fails, we can consider it successful locally
+      return { success: true };
     }
   }
 
   // Password reset
   async sendPasswordReset(email) {
+    if (this.isOfflineMode()) {
+      return { success: false, error: 'Password reset not available in offline mode' };
+    }
+
     try {
+      const auth = await this.getAuth();
+      const { sendPasswordResetEmail } = await import('firebase/auth');
       await sendPasswordResetEmail(auth, email);
       console.log('[AuthService] Password reset email sent to:', email);
       return { success: true };
@@ -131,7 +204,13 @@ class AuthService {
 
   // Update user profile
   async updateUserProfile(updates) {
+    if (this.isOfflineMode()) {
+      return { success: false, error: 'Profile updates not available in offline mode' };
+    }
+
     try {
+      const auth = await this.getAuth();
+      const { updateProfile } = await import('firebase/auth');
       await updateProfile(auth.currentUser, updates);
       console.log('[AuthService] Profile updated successfully');
       return { success: true };
@@ -142,18 +221,36 @@ class AuthService {
   }
 
   // Get current user
-  getCurrentUser() {
-    return auth.currentUser;
+  async getCurrentUser() {
+    try {
+      const auth = await this.getAuth();
+      return auth.currentUser;
+    } catch (error) {
+      console.error('[AuthService] Failed to get current user:', error);
+      return null;
+    }
   }
 
   // Check if user is authenticated
-  isAuthenticated() {
-    return !!auth.currentUser;
+  async isAuthenticated() {
+    try {
+      const auth = await this.getAuth();
+      return !!auth.currentUser;
+    } catch (error) {
+      console.error('[AuthService] Failed to check authentication:', error);
+      return false;
+    }
   }
 
   // Check if user is anonymous
-  isAnonymous() {
-    return auth.currentUser?.isAnonymous || false;
+  async isAnonymous() {
+    try {
+      const auth = await this.getAuth();
+      return auth.currentUser?.isAnonymous || false;
+    } catch (error) {
+      console.error('[AuthService] Failed to check anonymous status:', error);
+      return false;
+    }
   }
 
   // Convert Firebase error codes to readable messages

@@ -6,7 +6,6 @@ import { ThemeToggle } from './components/ThemeToggle';
 import { ConnectionStatus } from './components/ConnectionStatus';
 import { LoginModal } from './components/LoginModal';
 import { UserProfile } from './components/UserProfile';
-import { useFirebaseStatus } from './hooks/useFirebaseStatus';
 import { useAuth, authUtils } from './contexts/AuthContext';
 import sessionManager from './services/sessionManager';
 
@@ -52,7 +51,7 @@ export default function App() {
   // Authentication UI state
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [showUserProfile, setShowUserProfile] = useState(false);
-  const { user, isAnonymous, isAuthenticated } = useAuth();
+  const { user, isAnonymous, isAuthenticated, loading: authLoading, authError, offlineMode, enableOfflineMode } = useAuth();
 
   // Local take timer state
   const [takeTimerRunning, setTakeTimerRunning] = useState(false);
@@ -62,9 +61,6 @@ export default function App() {
   const [_takeNumber, _setTakeNumber] = useState('1');
   const [lastTakeGlow, setLastTakeGlow] = useState(false);
   const notesRef = useRef();
-  
-  // Firebase connection status
-  const firebaseStatus = useFirebaseStatus();
   
   // Collaboration state
   const [sessionId, setSessionId] = useState(null);
@@ -101,10 +97,10 @@ export default function App() {
       
       // Log sync for debugging
       console.log('[App] Sync clicked at:', new Date(syncClickTime).toISOString());
-      console.log('[App] Firebase status:', firebaseStatus);
+      console.log('[App] User authenticated:', isAuthenticated);
 
-      // Create collaboration session if Firebase is available
-      if (firebaseStatus.connected && !sessionId) {
+      // Create collaboration session if user is authenticated and online
+      if (isAuthenticated && !offlineMode && !sessionId) {
         try {
           const session = await sessionManager.createSession(slateInfo, userId);
           setSessionId(session.sessionId);
@@ -163,7 +159,7 @@ export default function App() {
       console.error('Error in handleSync:', err);
       setSyncStatus('Error - Try Again');
     }
-  }, [firebaseStatus, sessionId, slateInfo, notesRef, userId, setSessionId, setJoinUrl, setIsPaused, setSyncStatus, setTakeTimerRunning, setTakeStartTime, setTakeEndTime, setTakeDuration]);
+  }, [isAuthenticated, offlineMode, sessionId, slateInfo, notesRef, userId, setSessionId, setJoinUrl, setIsPaused, setSyncStatus, setTakeTimerRunning, setTakeStartTime, setTakeEndTime, setTakeDuration]);
 
   // Stop take
   const handleStopTake = useCallback(async () => {
@@ -277,6 +273,54 @@ export default function App() {
     };
   }, [takeTimerRunning, handleSync, handleStopTake]);
 
+  // Show loading screen while auth is initializing
+  if (authLoading) {
+    return (
+      <div className="loading-screen">
+        <div className="loading-content">
+          <div className="loading-spinner"></div>
+          <h2>Loading Digital Slate...</h2>
+          <p>Initializing authentication...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show error screen only if auth failed to initialize and can't fallback to offline mode
+  if (authError && !offlineMode && !user) {
+    const isFirebaseConfigError = authError.includes('Missing Firebase config') || 
+                                  authError.includes('Firebase config missing fields');
+    
+    return (
+      <div className="error-screen">
+        <div className="error-content">
+          <h2>⚠️ Authentication {isFirebaseConfigError ? 'Configuration' : 'Initialization'} Error</h2>
+          <p>
+            {isFirebaseConfigError 
+              ? 'Firebase configuration is missing or incomplete.'
+              : `Failed to initialize authentication: ${authError}`
+            }
+          </p>
+          <p>The app will continue in offline mode with limited functionality.</p>
+          <div className="error-actions">
+            <button 
+              onClick={() => window.location.reload()}
+              className="retry-button"
+            >
+              Retry
+            </button>
+            <button 
+              onClick={enableOfflineMode}
+              className="continue-button"
+            >
+              Continue Offline
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="container">
       <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
@@ -284,7 +328,7 @@ export default function App() {
         <button className={`tab${tab === 'timecode' ? ' active' : ''}`} onClick={() => setTab('timecode')}>Timecode Sync</button>
         <button className={`tab${tab === 'notes' ? ' active' : ''}`} onClick={() => setTab('notes')}>Notes</button>
         <div className="theme-toggle-container">
-          <ConnectionStatus status={firebaseStatus} />
+          <ConnectionStatus />
           
           {/* User Authentication UI */}
           {isAuthenticated ? (
